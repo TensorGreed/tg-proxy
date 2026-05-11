@@ -18,7 +18,7 @@ For security vulnerabilities, **do not file a public issue**. See [SECURITY.md](
 
 Required:
 
-- **Go 1.23** or later (`go version`).
+- **Go 1.25** or later (`go version`). Older toolchains will be auto-fetched via the `toolchain` directive when `GOTOOLCHAIN=auto`.
 - **make** — most workflows are one command away (`make test`, `make lint`, ...). Optional but convenient.
 
 Optional, only needed when working on the packaging wrappers:

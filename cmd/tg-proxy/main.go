@@ -107,6 +107,7 @@ func run() error {
 		IdleTimeout:      cfg.Limits.IdleTimeout(),
 		CertStore:        certStore,
 		UpstreamInsecure: cfg.TLS.UpstreamInsecure,
+		StreamWindow:     cfg.Streaming.WindowBytes,
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

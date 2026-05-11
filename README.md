@@ -32,6 +32,7 @@ It is **not** a WAF, **not** a substitute for at-rest encryption, **not** an exf
 - **Single static binary**, ~10 MB, CGO-free, ships on linux/macOS/Windows × amd64/arm64.
 - **Distributed five ways**: `go install`, apt `.deb`, `pip install tg-proxy`, `npm install -g tg-proxy`, prebuilt archives.
 - **Concurrent scanning** — scanners fan out across goroutines, errors collected with `errors.Join`, fail-open by default.
+- **Streaming** — Server-Sent Events, HTTP/1.1 chunked, and HTTP/2 streams flow through a sliding-window scanner so LLM SSE responses stay incremental to the client while still being redacted.
 - **CI matrix** on linux/macos/windows with `-race`, golangci-lint, GoReleaser snapshot build, pip and npm package smoke builds, and a coverage gate.
 
 ## Install
@@ -152,7 +153,7 @@ Bodies are buffered up to `limits.max_body_size`, fanned out across all enabled 
 - [x] **M1** — Explicit proxy, scanner + redactor framework, PII scanner, mask redactor, apt + `go install`.
 - [x] **M2** — MITM with on-the-fly CA, OS trust-store install/uninstall, `tg-proxy ca` subcommands.
 - [x] **M3** — pip wheels + npm packages, all distribution channels wired into the release pipeline.
-- [ ] **M4** — Streaming bodies (SSE, chunked) so long-running LLM responses scan in flight.
+- [x] **M4** — Streaming bodies (SSE, chunked, HTTP/2) with sliding-window scanning so long-running LLM responses scan in flight.
 - [ ] **M5** — gRPC-based external plugin host (HashiCorp `go-plugin`), Python and Node plugin SDKs.
 - [ ] **M6** — More built-in scanners (secrets in the gitleaks family, SQL injection heuristics, source-code detection), Prometheus metrics, hot config reload.
 - [ ] **M7** — Linux transparent mode via `SO_ORIGINAL_DST` + SNI sniffing for OS-level redirect without `HTTPS_PROXY`.

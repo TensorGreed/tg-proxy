@@ -51,6 +51,13 @@ type Options struct {
 	// UpstreamInsecure disables upstream TLS verification entirely. Only
 	// safe in tests or for known self-signed back-ends.
 	UpstreamInsecure bool
+
+	// StreamWindow sets the sliding-window byte count used when streaming
+	// response bodies through the pipeline. Zero falls back to
+	// pipeline.DefaultWindow. Bodies with an unknown Content-Length, with
+	// Transfer-Encoding: chunked, or with Content-Type starting "text/event-stream"
+	// are always streamed; everything else is buffered up to MaxBody.
+	StreamWindow int
 }
 
 type Server struct {
@@ -203,18 +210,25 @@ func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	hints := api.Hints{
+		ContentType: resp.Header.Get("Content-Type"),
+		URL:         r.URL.String(),
+		Method:      r.Method,
+		Direction:   api.DirectionResponse,
+	}
+
+	if isStreamableResponse(resp) {
+		s.streamResponse(w, r, resp, hints)
+		return
+	}
+
 	respBody, err := readBodyWithLimit(resp.Body, s.opts.MaxBody)
 	if err != nil {
 		s.replyError(w, r, err, "read response body")
 		return
 	}
 
-	respResult, err := s.opts.Pipeline.Process(r.Context(), respBody, api.Hints{
-		ContentType: resp.Header.Get("Content-Type"),
-		URL:         r.URL.String(),
-		Method:      r.Method,
-		Direction:   api.DirectionResponse,
-	})
+	respResult, err := s.opts.Pipeline.Process(r.Context(), respBody, hints)
 	if err != nil {
 		s.opts.Logger.Warn("scanner error on response body", "err", err, "url", r.URL.String())
 	}
@@ -230,6 +244,47 @@ func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	dst.Set("Content-Length", strconv.Itoa(len(respResult.Data)))
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(respResult.Data)
+}
+
+// isStreamableResponse decides whether a response should flow through the
+// streaming pipeline instead of being fully buffered. Streaming is required
+// for SSE and chunked responses (we don't know the length) and is preferable
+// for any response without a known Content-Length.
+func isStreamableResponse(resp *http.Response) bool {
+	if resp.ContentLength < 0 {
+		return true
+	}
+	for _, te := range resp.TransferEncoding {
+		if strings.EqualFold(te, "chunked") {
+			return true
+		}
+	}
+	if strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+		return true
+	}
+	return false
+}
+
+// streamResponse forwards a streaming response from upstream to the client
+// while running it through the scanner+redactor in a sliding window. Headers
+// are copied (minus Content-Length, which is unknown) and the body is piped.
+func (s *Server) streamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, hints api.Hints) {
+	dst := w.Header()
+	copyHeaders(dst, resp.Header)
+	removeHopHeaders(dst)
+	dst.Del("Content-Length")
+	dst.Del("Transfer-Encoding")
+	w.WriteHeader(resp.StatusCode)
+
+	sp := pipeline.NewStreamProcessor(pipeline.StreamOptions{
+		Scanners: s.opts.Pipeline.Scanners(),
+		Redactor: s.opts.Pipeline.Redactor(),
+		Hints:    hints,
+		Window:   s.opts.StreamWindow,
+	})
+	if err := sp.Pipe(r.Context(), resp.Body, w); err != nil {
+		s.opts.Logger.Warn("stream pipe error", "err", err, "url", r.URL.String())
+	}
 }
 
 // handleConnect tunnels HTTPS (and any other TLS-wrapped protocol) by

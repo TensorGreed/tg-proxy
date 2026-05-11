@@ -177,6 +177,28 @@ func TestValidate_NegativeLeafCacheSizeRejected(t *testing.T) {
 	assert.Error(t, c.Validate())
 }
 
+func TestValidate_NegativeStreamingWindowRejected(t *testing.T) {
+	c := Default()
+	c.Streaming.WindowBytes = -1
+	assert.Error(t, c.Validate())
+}
+
+func TestLoad_StreamingSection(t *testing.T) {
+	p := writeTemp(t, `
+listen: "127.0.0.1:8080"
+streaming:
+  window_bytes: 8192
+scanners:
+  - name: pii
+    enabled: true
+redactor:
+  name: mask
+`)
+	cfg, err := Load(p)
+	require.NoError(t, err)
+	assert.Equal(t, 8192, cfg.Streaming.WindowBytes)
+}
+
 func TestDefaultCAPaths_UnderUserConfigDir(t *testing.T) {
 	certPath, keyPath, err := DefaultCAPaths()
 	require.NoError(t, err)

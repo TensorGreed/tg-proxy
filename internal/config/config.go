@@ -45,8 +45,11 @@ func Default() *Config {
 				KeyPath:      "",
 				Organization: "tg-proxy CA",
 			},
-			LeafCacheSize:   1024,
+			LeafCacheSize:    1024,
 			UpstreamInsecure: false,
+		},
+		Streaming: StreamingConfig{
+			WindowBytes: 4096,
 		},
 		Scanners: []ScannerConfig{{Name: "pii", Enabled: true}},
 		Redactor: RedactorConfig{
@@ -57,12 +60,22 @@ func Default() *Config {
 }
 
 type Config struct {
-	Listen   string          `yaml:"listen"`
-	Log      LogConfig       `yaml:"log"`
-	Limits   LimitsConfig    `yaml:"limits"`
-	TLS      TLSConfig       `yaml:"tls"`
-	Scanners []ScannerConfig `yaml:"scanners"`
-	Redactor RedactorConfig  `yaml:"redactor"`
+	Listen    string          `yaml:"listen"`
+	Log       LogConfig       `yaml:"log"`
+	Limits    LimitsConfig    `yaml:"limits"`
+	TLS       TLSConfig       `yaml:"tls"`
+	Streaming StreamingConfig `yaml:"streaming"`
+	Scanners  []ScannerConfig `yaml:"scanners"`
+	Redactor  RedactorConfig  `yaml:"redactor"`
+}
+
+// StreamingConfig controls how response bodies that arrive incrementally
+// (SSE, chunked, or HTTP/2 streams) are scanned.
+type StreamingConfig struct {
+	// WindowBytes is the sliding-window size used by the scanner so that
+	// patterns spanning chunk boundaries are still detected. Must be at
+	// least as large as the longest match any active scanner can produce.
+	WindowBytes int `yaml:"window_bytes"`
 }
 
 type LogConfig struct {
@@ -154,6 +167,9 @@ func (c *Config) Validate() error {
 	}
 	if c.TLS.LeafCacheSize < 0 {
 		return errors.New("tls.leaf_cache_size must be >= 0")
+	}
+	if c.Streaming.WindowBytes < 0 {
+		return errors.New("streaming.window_bytes must be >= 0")
 	}
 	enabled := 0
 	for _, s := range c.Scanners {

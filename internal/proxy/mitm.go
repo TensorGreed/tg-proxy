@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"sync"
+
+	"golang.org/x/net/http2"
 )
 
 // handleMITMConnect intercepts a CONNECT request, terminates the client's
@@ -47,9 +49,13 @@ func (s *Server) handleMITMConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Advertise both HTTP/2 and HTTP/1.1 via ALPN; the client picks. When
+	// h2 is selected the stdlib's http.Server dispatches the conn through
+	// TLSNextProto["h2"], which http2.ConfigureServer registers below.
 	tlsConn := tls.Server(clientConn, &tls.Config{
 		Certificates: []tls.Certificate{*leaf},
 		MinVersion:   tls.VersionTLS12,
+		NextProtos:   []string{"h2", "http/1.1"},
 	})
 	if err := tlsConn.Handshake(); err != nil {
 		s.opts.Logger.Warn("mitm: tls handshake", "host", sni, "err", err)
@@ -77,6 +83,12 @@ func (s *Server) handleMITMConnect(w http.ResponseWriter, r *http.Request) {
 				_ = listener.Close()
 			}
 		},
+	}
+	// Without this call, http.Server only speaks HTTP/1.1 — the h2 ALPN
+	// token we advertised would be honored at the TLS layer but get no
+	// handler. ConfigureServer wires TLSNextProto["h2"].
+	if err := http2.ConfigureServer(inner, &http2.Server{}); err != nil {
+		s.opts.Logger.Warn("mitm: http2 configure", "err", err)
 	}
 	_ = inner.Serve(listener)
 }

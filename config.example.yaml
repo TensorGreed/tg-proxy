@@ -17,6 +17,14 @@ limits:
   write_timeout_seconds: 30
   idle_timeout_seconds: 120
 
+# Streaming scanner controls. Server-Sent Events (SSE), HTTP/1.1 chunked, and
+# HTTP/2 responses are processed incrementally via a sliding window so the
+# client gets bytes as they arrive — important for LLM SSE streams. The
+# window must be at least as long as the longest match any enabled scanner
+# can produce; 4 KiB is comfortably above the built-in scanners' worst case.
+streaming:
+  window_bytes: 4096
+
 # TLS interception. When mitm is true, HTTPS CONNECT requests are terminated
 # at the proxy using a forged leaf certificate signed by the configured CA,
 # so request and response bodies are scanned. Clients must trust the CA at
