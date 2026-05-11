@@ -1,0 +1,52 @@
+# tg-proxy example configuration.
+#
+# Listen address for the explicit HTTP(S) proxy. Set HTTP_PROXY/HTTPS_PROXY in
+# client processes to point here (e.g. http://127.0.0.1:8080).
+listen: "127.0.0.1:8080"
+
+log:
+  level: info     # debug | info | warn | error
+  format: text    # text | json
+
+limits:
+  # Maximum request/response body size to buffer for scanning (bytes).
+  # Bodies larger than this are rejected with HTTP 413 until streaming lands.
+  max_body_size: 10485760  # 10 MiB
+  # Connection-level timeouts.
+  read_timeout_seconds: 30
+  write_timeout_seconds: 30
+  idle_timeout_seconds: 120
+
+# TLS interception. When mitm is true, HTTPS CONNECT requests are terminated
+# at the proxy using a forged leaf certificate signed by the configured CA,
+# so request and response bodies are scanned. Clients must trust the CA at
+# tls.ca.cert_path — generate it with `tg-proxy ca generate` and install it
+# with `tg-proxy ca install` (admin/sudo required).
+#
+# When mitm is false, HTTPS traffic is tunneled blind (no scanning).
+tls:
+  mitm: false
+  ca:
+    # If empty, both paths resolve to os.UserConfigDir()/tg-proxy/ca.{crt,key}.
+    cert_path: ""
+    key_path: ""
+    organization: "tg-proxy CA"
+  # LRU cache of forged leaf certs. 0 disables caching (slower).
+  leaf_cache_size: 1024
+  # Skip verification of upstream TLS certificates. Only for tests or
+  # known-self-signed back-ends; LEAVE FALSE in production.
+  upstream_insecure: false
+
+# Scanners to run on each request/response body. Each scanner emits findings
+# with byte-precise Start/End offsets that the redactor consumes.
+scanners:
+  - name: pii
+    enabled: true
+
+# Redactor that consumes findings and rewrites the body in-flight. Exactly one
+# redactor runs at a time; swap it (or replace with your own implementation)
+# by changing `name` and `config`.
+redactor:
+  name: mask
+  config:
+    placeholder: "[REDACTED]"

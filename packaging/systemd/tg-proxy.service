@@ -1,0 +1,44 @@
+[Unit]
+Description=tg-proxy: pluggable scanning/redacting network proxy
+Documentation=https://github.com/TensorGreed/tg-proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tg-proxy
+Group=tg-proxy
+ExecStart=/usr/bin/tg-proxy -config /etc/tg-proxy/config.yaml
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65535
+
+# Hardening — tg-proxy needs only network egress and read-only access to
+# its config; nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/tg-proxy
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

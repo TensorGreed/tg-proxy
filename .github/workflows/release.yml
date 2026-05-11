@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write   # required for PyPI trusted publishing
+
+env:
+  GO_VERSION: "1.23"
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build binaries + .deb + GitHub Release with goreleaser. Uploads the dist/
+  # directory as an artifact so downstream jobs (pip, npm) can consume it
+  # without rebuilding.
+  # ---------------------------------------------------------------------------
+  goreleaser:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - id: derive
+        name: derive version from tag
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Build per-platform wheels and sdist, then publish to PyPI via trusted
+  # publishing (no API token in secrets — see PyPI publisher config).
+  # ---------------------------------------------------------------------------
+  publish-pip:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: install build deps
+        run: python -m pip install --upgrade build wheel twine
+
+      - name: download goreleaser dist
+        uses: actions/download-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+
+      - name: build wheels + sdist
+        run: |
+          python packaging/pip/build_wheels.py \
+            --dist-dir   "$PWD/dist" \
+            --version    "${{ needs.goreleaser.outputs.version }}" \
+            --output     "$PWD/wheels"
+
+      - name: publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheels/
+
+  # ---------------------------------------------------------------------------
+  # Assemble + publish 1 root package and 6 platform packages to npm.
+  # ---------------------------------------------------------------------------
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org/
+
+      - name: download goreleaser dist
+        uses: actions/download-artifact@v4
+        with:
+          name: goreleaser-dist
+          path: dist/
+
+      - name: stage npm packages
+        run: |
+          node packaging/npm/build_npm.js \
+            --dist-dir "$PWD/dist" \
+            --version  "${{ needs.goreleaser.outputs.version }}" \
+            --output   "$PWD/npm-out"
+
+      - name: publish platform packages
+        run: |
+          set -e
+          for d in npm-out/tg-proxy-*; do
+            echo "publishing $d"
+            npm publish --access public "$d"
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: publish root package
+        run: |
+          npm publish --access public npm-out/tg-proxy
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

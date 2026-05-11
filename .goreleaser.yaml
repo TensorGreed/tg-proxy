@@ -1,0 +1,100 @@
+# GoReleaser config. Drives release builds, archives, and .deb / .rpm
+# packaging via the bundled nfpm integration.
+#
+# Validate locally with: goreleaser check
+# Build a snapshot:      goreleaser release --snapshot --clean
+
+version: 2
+
+project_name: tg-proxy
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: tg-proxy
+    main: ./cmd/tg-proxy
+    binary: tg-proxy
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - config.example.yaml
+
+nfpms:
+  - id: tg-proxy
+    package_name: tg-proxy
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: TensorGreed
+    homepage: https://github.com/TensorGreed/tg-proxy
+    maintainer: TensorGreed <opensource@tensorgreed.io>
+    description: |
+      tg-proxy is a lightweight network proxy with built-in scanners for
+      PII, secrets, and other sensitive data, plus pluggable in-flight
+      redaction. Use it at the OS level (HTTP_PROXY) or inline between
+      AI agents and downstream services (LLMs, RAG, MCP, A2A).
+    license: MIT
+    section: net
+    priority: optional
+    formats:
+      - deb
+    bindir: /usr/bin
+    contents:
+      - src: ./config.example.yaml
+        dst: /etc/tg-proxy/config.example.yaml
+        type: config|noreplace
+      - src: ./packaging/systemd/tg-proxy.service
+        dst: /lib/systemd/system/tg-proxy.service
+      - src: ./LICENSE
+        dst: /usr/share/doc/tg-proxy/LICENSE
+    scripts:
+      postinstall: packaging/scripts/postinstall.sh
+      preremove:   packaging/scripts/preremove.sh
+      postremove:  packaging/scripts/postremove.sh
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: TensorGreed
+    name: tg-proxy
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"

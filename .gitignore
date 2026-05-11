@@ -1,0 +1,22 @@
+bin/
+dist/
+coverage.out
+coverage.html
+*.test
+*.out
+.idea/
+.vscode/
+.DS_Store
+*.local.yaml
+.scratch/
+
+# Python build artifacts under packaging/pip
+packaging/pip/build/
+packaging/pip/src/*.egg-info/
+packaging/pip/src/tg_proxy/bin/
+packaging/pip/wheels/
+__pycache__/
+
+# Node artifacts under packaging/npm
+packaging/npm/node_modules/
+packaging/npm/npm-out/

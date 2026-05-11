@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.23"
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: go mod download
+        run: go mod download
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test (race + coverage)
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: coverage threshold
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Gate at 80%: above this, the remaining uncovered statements are
+          # entry-point glue (main/run), OS-specific shell-outs that need
+          # admin to actually run, and cryptographic-failure branches that
+          # can't be triggered without mocking crypto/rand.
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$3); print $3}')
+          echo "Total coverage: ${total}%"
+          awk -v t="$total" -v m=80 'BEGIN { if (t+0 < m+0) { printf "coverage %s%% is below threshold %s%%\n", t, m; exit 1 } }'
+
+      - name: upload coverage artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61
+
+  vet:
+    name: vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: go vet ./...
+
+  goreleaser-check:
+    name: goreleaser config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: validate .goreleaser.yaml
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: check
+
+  goreleaser-snapshot:
+    name: goreleaser snapshot build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: snapshot build (smoke-tests nfpm/.deb packaging)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean --skip=publish
+      - name: list produced artifacts
+        run: ls -la dist/
+      - name: upload .deb for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-snapshot
+          path: dist/*.deb
+          if-no-files-found: error
+      - name: upload dist for downstream packaging jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-dist
+          path: dist/
+          retention-days: 1
+
+  pip-wrapper:
+    name: pip wrapper (tests + build)
+    needs: goreleaser-snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install build deps
+        run: python -m pip install --upgrade build wheel
+      - name: shim unit tests
+        run: python -m unittest discover -s packaging/pip/tests
+      - name: download snapshot dist
+        uses: actions/download-artifact@v4
+        with:
+          name: snapshot-dist
+          path: dist/
+      - name: build wheels (smoke)
+        run: |
+          # PEP 440 forbids hyphens in versions; use dev pre-release.
+          python packaging/pip/build_wheels.py \
+            --dist-dir "$PWD/dist" \
+            --version  "0.0.0.dev0" \
+            --output   "$PWD/wheels"
+          ls -la wheels/
+      - name: upload wheels for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-wheels-snapshot
+          path: wheels/
+          if-no-files-found: error
+
+  npm-wrapper:
+    name: npm wrapper (tests + build)
+    needs: goreleaser-snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: shim unit tests
+        run: node --test packaging/npm/test/shim.test.js
+      - name: download snapshot dist
+        uses: actions/download-artifact@v4
+        with:
+          name: snapshot-dist
+          path: dist/
+      - name: stage npm packages (smoke)
+        run: |
+          node packaging/npm/build_npm.js \
+            --dist-dir "$PWD/dist" \
+            --version  "0.0.0-snapshot" \
+            --output   "$PWD/npm-out"
+          ls -la npm-out/
+      - name: upload staged packages for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-packages-snapshot
+          path: npm-out/
+          if-no-files-found: error

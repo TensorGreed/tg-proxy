@@ -1,0 +1,40 @@
+{
+  "name": "tg-proxy",
+  "version": "0.0.0",
+  "description": "Lightweight network proxy with built-in PII / secret scanners and pluggable in-flight redaction.",
+  "license": "MIT",
+  "author": "TensorGreed",
+  "homepage": "https://github.com/TensorGreed/tg-proxy",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TensorGreed/tg-proxy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TensorGreed/tg-proxy/issues"
+  },
+  "keywords": [
+    "proxy",
+    "mitm",
+    "pii",
+    "redaction",
+    "scanner",
+    "security"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "tg-proxy": "bin/tg-proxy.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "optionalDependencies": {
+    "tg-proxy-linux-x64":    "0.0.0",
+    "tg-proxy-linux-arm64":  "0.0.0",
+    "tg-proxy-darwin-x64":   "0.0.0",
+    "tg-proxy-darwin-arm64": "0.0.0",
+    "tg-proxy-win32-x64":    "0.0.0",
+    "tg-proxy-win32-arm64":  "0.0.0"
+  }
+}
