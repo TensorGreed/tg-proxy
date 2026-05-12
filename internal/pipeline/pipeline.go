@@ -60,6 +60,9 @@ type Result struct {
 //     wrapped inside `atob(...)`, env-vars set to base64 blobs, etc.
 //   - SQL-comment-stripped view (when `/*` is present): foils MySQL's
 //     `/*...*/`-as-whitespace evasion like `UN/**/ION SE/**/LECT`.
+//   - Whitespace-stitched view (when ASCII space or tab is present):
+//     fuses token-shaped regions broken by single whitespaces back into
+//     one token (`alice @ example.com` → `alice@example.com`).
 //
 // Each pass's findings are mapped back to byte ranges in the original
 // buffer and deduped against earlier findings by `(type, range)`.
@@ -96,6 +99,12 @@ func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]ap
 
 	if containsSlashStarComment(data) {
 		extra, err := p.transformedPass(ctx, data, hints, sqliCommentStrip)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
+	}
+
+	if containsSpaceOrTab(data) {
+		extra, err := p.transformedPass(ctx, data, hints, whitespaceStitch)
 		scanErr = errors.Join(scanErr, err)
 		findings = mergeNew(findings, extra)
 	}

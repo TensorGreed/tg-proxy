@@ -1,6 +1,0 @@
-{
-  "comment": "Email with spaces around @. A common copy/paste artifact; users often type 'alice @ example.com' in chat. The current regex requires no whitespace around the @. Fix would need to permit `\\s*@\\s*` and stitch the match together.",
-  "ideal_findings": [
-    {"type": "pii.email", "match": "alice @ example.com"}
-  ]
-}

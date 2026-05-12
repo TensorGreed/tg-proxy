@@ -1,5 +1,5 @@
 {
-  "comment": "Phone number with spaces between every digit. Pasted from a chat where each digit got its own keypress.",
+  "comment": "Phone number with spaces between every digit, embedded in prose. Why it still misses after the whitespace-stitch pass: the stitch happily fuses the entire 'My number is 4 1 5 - 5 5 5 - 0 1 8 8' span into `Mynumberis415-555-0188`, which breaks the phone regex's `\\b\\d{3}` boundary requirement (`s` is a word char, no boundary before `4`). Fixing this needs a smarter region-start rule that splits at letter→digit transitions — but that same rule breaks Stripe and AWS, which legitimately need lower-letter↔upper-letter joins inside their key bodies. Likely correct path: a second narrow-stitch pass that only joins digit-digit / digit-special / special-digit and runs alongside the broader stitch.",
   "ideal_findings": [
     {"type": "pii.phone_us", "match": "4 1 5 - 5 5 5 - 0 1 8 8"}
   ]
