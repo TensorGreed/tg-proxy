@@ -104,6 +104,19 @@ var detectors = []detector{
 		severity:   api.SeverityLow,
 		confidence: 0.40,
 	},
+	{
+		// CHR()/CHAR()-concatenation tautology. Attackers reassemble
+		// `'OR'+CHR(32)+'1'+CHR(61)+'1'` to dodge filters that look for
+		// literal `'`, `=`, or whitespace. Anchor on the alternating
+		// `'STR' + CHR(N) + 'STR' + CHR(N)` shape so we don't fire on
+		// isolated CHR() calls in legitimate DB code.
+		typ: "sqli.tautology",
+		pattern: regexp.MustCompile(
+			`(?i)'[^']{0,16}'\s*[+|]+\s*CH(?:R|AR)\(\s*\d{1,3}\s*\)\s*[+|]+\s*'[^']{0,16}'\s*[+|]+\s*CH(?:R|AR)\(\s*\d{1,3}\s*\)`,
+		),
+		severity:   api.SeverityHigh,
+		confidence: 0.80,
+	},
 }
 
 type Scanner struct{}

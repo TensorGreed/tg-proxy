@@ -1,7 +1,0 @@
-{
-  "comment": "Pseudo-code missing parentheses and colons. Probably real proprietary design notes pasted into an LLM prompt. The current regex requires `def name(` and `class Name[(:]`. A tree-sitter pass would handle this; pure regex can't without unacceptable FPs.",
-  "ideal_findings": [
-    {"type": "code.python_def",   "match": "def greet name:"},
-    {"type": "code.python_class", "match": "class Order id:"}
-  ]
-}

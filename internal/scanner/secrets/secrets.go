@@ -157,6 +157,27 @@ var detectors = []detector{
 		severity:   api.SeverityCritical,
 		confidence: 0.99,
 	},
+	{
+		// PEM private-key BODY without the BEGIN/END header — catches
+		// attackers (or honest copy-paste accidents) that strip the
+		// header. PKCS#8 / RSA / EC private keys all start their base64
+		// body with the ASN.1 DER sequence tag `30 82`, which encodes
+		// to `MII` + uppercase letter (`MIIE` for RSA-2048, `MIIC` for
+		// RSA-1024, `MIIB` for EC, etc.). Requiring 60+ base64 chars on
+		// the first line plus a multi-line continuation distinguishes
+		// from short single-line base64 strings that happen to start
+		// with `MII`.
+		//
+		// FP risk: an X.509 certificate body without its `-----BEGIN
+		// CERTIFICATE-----` header also matches (certs share the DER
+		// prefix). We accept that — a leaked cert body is still data
+		// that shouldn't be flowing through the proxy unredacted, and
+		// it deserves the same handling as a leaked key.
+		typ:        "secret.private_key",
+		pattern:    regexp.MustCompile(`\bMII[A-Z][A-Za-z0-9+/]{60,}=*(?:\s+[A-Za-z0-9+/=]{20,})+`),
+		severity:   api.SeverityCritical,
+		confidence: 0.55,
+	},
 
 	// --- Source-control & package registries -----------------------------
 	{

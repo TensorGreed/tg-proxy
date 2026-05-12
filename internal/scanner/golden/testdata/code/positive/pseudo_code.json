@@ -1,0 +1,7 @@
+{
+  "comment": "Pseudo-Python missing parentheses — design-doc shorthand of the kind that leaks into LLM prompts. The widened def/class detectors anchor to start of line and require at least one extra word between the name and the colon, distinguishing pseudo-code from real Python (which has parens) and from prose (which doesn't end identifier-colon lines this way).",
+  "findings": [
+    {"type": "code.python_def",   "match": "def greet name:"},
+    {"type": "code.python_class", "match": "class Order id:"}
+  ]
+}

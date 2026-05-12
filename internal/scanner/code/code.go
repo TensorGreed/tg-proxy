@@ -34,10 +34,34 @@ var detectors = []detector{
 		confidence: 0.85,
 	},
 	{
+		// Pseudo-Python `def name word[ word…]:` — design-doc shorthand
+		// for a function signature, with the parens dropped. Catches
+		// proprietary spec lines that leak into LLM prompts. Anchored
+		// to start of line and required to have at least one extra
+		// word between the function name and the colon, so `def foo:`
+		// in prose (e.g. a heading or label) doesn't fire. Excludes
+		// `(` so it doesn't double-match real Python defs.
+		typ:        "code.python_def",
+		pattern:    regexp.MustCompile(`(?m)^[ \t]*def\s+[A-Za-z_]\w*\s+[A-Za-z_]\w*[^()\n]*:`),
+		severity:   api.SeverityLow,
+		confidence: 0.55,
+	},
+	{
 		typ:        "code.python_class",
 		pattern:    regexp.MustCompile(`\bclass\s+[A-Z][A-Za-z0-9_]*\s*[(:]`),
 		severity:   api.SeverityMedium,
 		confidence: 0.80,
+	},
+	{
+		// Pseudo-Python `class Name field[ field…]:` — the class
+		// counterpart to the pseudo-def detector. Same anchoring and
+		// extra-word requirement; the uppercase first letter on the
+		// name keeps it from firing on prose like "...split the class
+		// hierarchy into:" at line start.
+		typ:        "code.python_class",
+		pattern:    regexp.MustCompile(`(?m)^[ \t]*class\s+[A-Z]\w*\s+[A-Za-z_]\w*[^()\n]*:`),
+		severity:   api.SeverityLow,
+		confidence: 0.55,
 	},
 	{
 		typ:        "code.python_import",

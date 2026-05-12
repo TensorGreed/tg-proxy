@@ -1,0 +1,6 @@
+{
+  "comment": "Tautology assembled via CHR()/CHAR() string concatenation to dodge filters that look for literal quotes, equals signs, or whitespace. The detector anchors on the alternating `'STR'+CHR(N)+'STR'+CHR(N)` shape so isolated CHR() calls in benign DB code don't fire.",
+  "findings": [
+    {"type": "sqli.tautology", "match": "'OR'+CHR(32)+'1'+CHR(61)+'1'"}
+  ]
+}
