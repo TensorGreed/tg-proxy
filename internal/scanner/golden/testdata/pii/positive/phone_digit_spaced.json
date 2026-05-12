@@ -1,0 +1,6 @@
+{
+  "comment": "GRADUATED from adversarial: phone number with spaces between every digit, embedded in prose. Caught by the narrow digit-only stitch pass (digitStitch), which complements the broad whitespaceStitch — the broad pass would fuse the prose into the digits and break the phone regex's `\\b\\d{3}` boundary; the narrow pass treats letters as region blockers so the digit cluster is fused on its own, leaving the prose around it intact.",
+  "findings": [
+    {"type": "pii.phone_us", "match": "4 1 5 - 5 5 5 - 0 1 8 8"}
+  ]
+}

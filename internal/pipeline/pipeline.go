@@ -62,7 +62,11 @@ type Result struct {
 //     `/*...*/`-as-whitespace evasion like `UN/**/ION SE/**/LECT`.
 //   - Whitespace-stitched view (when ASCII space or tab is present):
 //     fuses token-shaped regions broken by single whitespaces back into
-//     one token (`alice @ example.com` → `alice@example.com`).
+//     one token. Runs in two flavors — a broad pass that includes
+//     letters in eligibility (catches `alice @ example.com`, AWS keys,
+//     Stripe keys) and a narrow pass that treats letters as region
+//     blockers (catches `4 1 5 - 5 5 5 - 0 1 8 8` embedded in prose
+//     without dragging the prose along).
 //
 // Each pass's findings are mapped back to byte ranges in the original
 // buffer and deduped against earlier findings by `(type, range)`.
@@ -105,6 +109,16 @@ func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]ap
 
 	if containsSpaceOrTab(data) {
 		extra, err := p.transformedPass(ctx, data, hints, whitespaceStitch)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
+
+		// Narrow digit-only stitch runs alongside the broad one. They
+		// produce different regions for inputs like
+		// `My number is 4 1 5 - …` where the broad stitch fuses the
+		// prose with the digits (breaking the phone regex's `\b`),
+		// while the narrow stitch picks up just the digit-and-separator
+		// span. mergeNew dedupes any overlap by (type, range).
+		extra, err = p.transformedPass(ctx, data, hints, digitStitch)
 		scanErr = errors.Join(scanErr, err)
 		findings = mergeNew(findings, extra)
 	}

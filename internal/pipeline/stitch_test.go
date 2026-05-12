@@ -136,6 +136,56 @@ func TestScan_WhitespaceStitchPass_CatchesEmailWithSpaces(t *testing.T) {
 	assert.True(t, email, "email must fire after whitespace stitch")
 }
 
+// --- narrow digit-only stitch -----------------------------------------
+
+func TestDigitStitch_PhoneDigitSpacedInProse(t *testing.T) {
+	// The case the broad whitespace stitch couldn't handle alone: digits
+	// embedded in prose. The narrow pass treats letters as region
+	// blockers, so the prose stays separate from the digit cluster.
+	src := []byte("My number is 4 1 5 - 5 5 5 - 0 1 8 8, call any time.")
+	out, idx := digitStitch(src)
+	require.NotNil(t, idx)
+	got := string(out)
+
+	// The digit cluster is fused — but the prose is intact.
+	assert.Contains(t, got, "415-555-0188")
+	assert.Contains(t, got, "My number is")
+}
+
+func TestDigitStitch_LeavesLetterTokensAlone(t *testing.T) {
+	// An AWS key with broken whitespace — the narrow pass skips it
+	// entirely (the broad pass handles that case).
+	src := []byte("aws=AKIA IOSFODNN7EXAMPLE here")
+	out, idx := digitStitch(src)
+	assert.Equal(t, string(src), string(out))
+	assert.Nil(t, idx)
+}
+
+func TestDigitStitch_LeavesEmailAlone(t *testing.T) {
+	// Email with spaces — also handled by broad pass, not narrow.
+	src := []byte("contact alice @ example.com please")
+	out, idx := digitStitch(src)
+	assert.Equal(t, string(src), string(out))
+	assert.Nil(t, idx)
+}
+
+func TestScan_DigitStitchPass_CatchesPhoneInProse(t *testing.T) {
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	src := []byte("My number is 4 1 5 - 5 5 5 - 0 1 8 8, call any time.")
+	findings, err := p.Scan(context.Background(), src, api.Hints{})
+	require.NoError(t, err)
+
+	var phone bool
+	for _, f := range findings {
+		if f.Type == "pii.phone_us" {
+			phone = true
+			// Mapped range must include the spaces from the original.
+			assert.Contains(t, string(src[f.Start:f.End]), "4 1 5 - 5 5 5 - 0 1 8 8")
+		}
+	}
+	assert.True(t, phone, "phone must fire on the digit-stitched view")
+}
+
 // indexOf finds the first occurrence of needle in haystack, or -1.
 // Tiny helper so the test reads naturally without pulling in bytes.Index.
 func indexOf(haystack, needle []byte) int {

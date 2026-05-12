@@ -13,29 +13,37 @@ import "bytes"
 //	"AKIA IOSFODNN7EXAMPLE"
 //	"sk_live_4HrPbMzZqXk TcWnFsLDaEoBy"
 //
-// Stitching is deliberately scoped to "regions that already look like one
-// token broken by whitespace" so we don't fuse arbitrary prose into
-// false-positive-prone strings. A region must:
+// Two passes run independently with different eligibility predicates:
 //
-//   - consist of characters from a token-ish alphabet (letters, digits,
-//     and the common token punctuation `. _ - + @`),
+//   - whitespaceStitch — broad: letters, digits, and `. _ - + @` are all
+//     eligible. Catches mixed-case tokens like AWS keys and Stripe keys
+//     that legitimately need letter↔letter joins inside the body.
+//
+//   - digitStitch — narrow: ONLY digits and `. _ - + @` are eligible
+//     (letters block the region). Catches digit-only sequences embedded
+//     in prose without dragging the prose along (the phone case the
+//     broad stitch couldn't handle without breaking AWS/Stripe).
+//
+// Both passes share the same region-detection state machine and emit
+// logic; only the per-byte eligibility check differs.
+//
+// A region must:
+//
 //   - allow at most one consecutive whitespace char (space or tab) as an
 //     internal join — two or more terminates the region,
 //   - be at least 12 chars long, and
 //   - have at least 50% of its bytes be non-whitespace eligible chars.
 //
-// The third and fourth conditions exclude short strings (`a b`) and very
-// sparse strings (digits with double-spaces between them).
+// The third and fourth conditions exclude short strings and sparse runs.
 
 const (
 	minStitchLength   = 12
 	minStitchRatioPct = 50
 )
 
-// isStitchEligible returns true for the characters we'll fuse across
-// single whitespaces. We include `.`, `_`, `-`, `+`, `@` so emails,
-// snake_case API keys, hyphenated phone numbers, and similar token
-// shapes survive intact.
+// isStitchEligible returns true for the broad eligibility set: letters,
+// digits, and the common token punctuation `. _ - + @`. Used by
+// whitespaceStitch.
 func isStitchEligible(b byte) bool {
 	switch {
 	case b >= 'A' && b <= 'Z':
@@ -50,25 +58,43 @@ func isStitchEligible(b byte) bool {
 	return false
 }
 
-// containsSpaceOrTab is the cheap pre-check for whitespaceStitch: bodies
-// with no ASCII space or tab can't have stitchable regions.
+// isDigitOrSpecial returns true for the narrow eligibility set: digits
+// and `. _ - + @` only. Letters explicitly block the region. Used by
+// digitStitch.
+func isDigitOrSpecial(b byte) bool {
+	switch {
+	case b >= '0' && b <= '9':
+		return true
+	case b == '.', b == '_', b == '-', b == '+', b == '@':
+		return true
+	}
+	return false
+}
+
+// containsSpaceOrTab is the cheap pre-check for both stitch passes.
 func containsSpaceOrTab(data []byte) bool {
 	return bytes.IndexAny(data, " \t") >= 0
 }
 
-// whitespaceStitch emits a view of src where every internal single
-// whitespace inside a "stitchable" region has been removed, along with a
-// byte-level mapping from output positions back to source positions.
-// Returns nil mapping when nothing was stitched.
-//
-// Bytes outside stitchable regions pass through verbatim, including
-// whitespace between regions. Each emitted byte's mapping points at its
-// position in src.
+// whitespaceStitch is the broad stitch pass.
 func whitespaceStitch(src []byte) ([]byte, []int) {
+	return stitchByEligible(src, isStitchEligible)
+}
+
+// digitStitch is the narrow stitch pass — useful for digit-only sequences
+// pasted with single whitespaces between every digit ("4 1 5 - 5 5 5 …")
+// that the broad stitch would over-fuse with surrounding prose.
+func digitStitch(src []byte) ([]byte, []int) {
+	return stitchByEligible(src, isDigitOrSpecial)
+}
+
+// stitchByEligible runs the shared region-detection + emit logic with the
+// caller-supplied eligibility predicate.
+func stitchByEligible(src []byte, eligible func(byte) bool) ([]byte, []int) {
 	if !containsSpaceOrTab(src) {
 		return src, nil
 	}
-	regions := findStitchableRegions(src)
+	regions := findStitchableRegions(src, eligible)
 	if len(regions) == 0 {
 		return src, nil
 	}
@@ -106,9 +132,9 @@ func whitespaceStitch(src []byte) ([]byte, []int) {
 }
 
 // findStitchableRegions returns the half-open [start, end) byte ranges
-// in src that qualify as stitchable per the rules described at the top
-// of this file.
-func findStitchableRegions(src []byte) [][2]int {
+// in src that qualify per the eligibility predicate and the length /
+// ratio gates at the top of this file.
+func findStitchableRegions(src []byte, eligible func(byte) bool) [][2]int {
 	var regions [][2]int
 	regionStart := -1
 	eligibleCount := 0
@@ -129,26 +155,25 @@ func findStitchableRegions(src []byte) [][2]int {
 	for pos < len(src) {
 		b := src[pos]
 		switch {
-		case isStitchEligible(b):
+		case eligible(b):
 			if regionStart < 0 {
 				regionStart = pos
 			}
 			eligibleCount++
 			pos++
 		case b == ' ' || b == '\t':
-			// Look ahead: how many consecutive ws follow?
 			ahead := pos + 1
 			for ahead < len(src) && (src[ahead] == ' ' || src[ahead] == '\t') {
 				ahead++
 			}
 			wsRun := ahead - pos
 			joinable := wsRun == 1 && ahead < len(src) &&
-				isStitchEligible(src[ahead]) && regionStart >= 0
+				eligible(src[ahead]) && regionStart >= 0
 			if joinable {
-				pos++ // treat the single ws as internal — region continues
+				pos++ // single internal whitespace — region continues
 			} else {
 				flush(pos)
-				pos = ahead // skip the whole whitespace run
+				pos = ahead
 			}
 		default:
 			flush(pos)
