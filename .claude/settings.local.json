@@ -10,7 +10,8 @@
       "Bash(mv internal/scanner/golden/testdata/sqli/adversarial/nbsp_separator.txt internal/scanner/golden/testdata/sqli/positive/nbsp_separator.txt)",
       "Bash(mv internal/scanner/golden/testdata/sqli/adversarial/nbsp_separator.json internal/scanner/golden/testdata/sqli/positive/nbsp_separator.json)",
       "Bash(mv internal/scanner/golden/testdata/pii/adversarial/phone_digit_spaced.txt internal/scanner/golden/testdata/pii/positive/phone_digit_spaced.txt)",
-      "Bash(mv internal/scanner/golden/testdata/pii/adversarial/phone_digit_spaced.json internal/scanner/golden/testdata/pii/positive/phone_digit_spaced.json)"
+      "Bash(mv internal/scanner/golden/testdata/pii/adversarial/phone_digit_spaced.json internal/scanner/golden/testdata/pii/positive/phone_digit_spaced.json)",
+      "Bash(pip install *)"
     ]
   }
 }

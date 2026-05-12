@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/tgproxy_presidio/__init__.py
+src/tgproxy_presidio/__main__.py
+src/tgproxy_presidio/scanner.py
+src/tgproxy_presidio.egg-info/PKG-INFO
+src/tgproxy_presidio.egg-info/SOURCES.txt
+src/tgproxy_presidio.egg-info/dependency_links.txt
+src/tgproxy_presidio.egg-info/entry_points.txt
+src/tgproxy_presidio.egg-info/requires.txt
+src/tgproxy_presidio.egg-info/top_level.txt

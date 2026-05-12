@@ -82,6 +82,12 @@ scanners:
   # Microsoft Presidio. Adds ~50 entity types over the built-in pii rule
   # at the cost of ~500MB resident memory and 10–50ms per body. Install:
   #   pip install tgproxy-presidio && python -m spacy download en_core_web_lg
+  #
+  # By default the plugin reports a curated entity set; DATE_TIME,
+  # US_BANK_NUMBER, and US_DRIVER_LICENSE are excluded because they
+  # fire on bare integers (`10485760`, `4096`) and common words
+  # (`Tuesday`). Set TGPROXY_PRESIDIO_ENTITIES to override
+  # (comma-separated, or `*` for every Presidio recognizer).
   # - name: presidio
   #   enabled: true
   #   external:

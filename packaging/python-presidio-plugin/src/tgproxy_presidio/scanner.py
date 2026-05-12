@@ -89,12 +89,82 @@ def _to_finding(
     )
 
 
-def build_scanner(model_name: Optional[str] = None) -> Callable[[bytes, Hints], List[Finding]]:
+# DEFAULT_ENTITIES is the curated set of Presidio entity types enabled
+# when the caller doesn't override. Each one earned its place by being
+# either (a) high-value PII that regex can't reliably catch (PERSON,
+# LOCATION, NRP) or (b) high-stakes identifiers Presidio detects with
+# strong-context recognizers (financial, government IDs, contact info).
+#
+# Entities deliberately NOT in the default:
+#
+#   - DATE_TIME: Presidio's regex recognizer fires at score 0.85 on bare
+#     integers (`10485760`, `4096`) and common words (`Tuesday`,
+#     `morning`, `the same day`). Too noisy for production traffic.
+#   - US_BANK_NUMBER, US_DRIVER_LICENSE: regex-only, weak context filter,
+#     trips on long digit strings.
+#   - US_ITIN: same recognizer family as the above two.
+#
+# Opt back in via the `entities` argument to build_scanner() or the
+# TGPROXY_PRESIDIO_ENTITIES env var (comma-separated). Set "*" to enable
+# every Presidio recognizer with no filter.
+DEFAULT_ENTITIES = (
+    # Identity (NER-driven, model-dependent)
+    "PERSON",
+    "LOCATION",
+    "NRP",
+    # Contact info
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER",
+    "IP_ADDRESS",
+    "URL",
+    # Financial
+    "CREDIT_CARD",
+    "IBAN_CODE",
+    "CRYPTO",
+    # Government IDs (high-confidence recognizers)
+    "US_SSN",
+    "US_PASSPORT",
+    "UK_NHS",
+    "AU_TFN",
+    "AU_ACN",
+    "AU_ABN",
+    "AU_MEDICARE",
+    # Medical
+    "MEDICAL_LICENSE",
+)
+
+
+def _entities_from_env() -> Optional[List[str]]:
+    """Parse TGPROXY_PRESIDIO_ENTITIES into a list, or return None for
+    "use the default set." A literal `*` value means "let Presidio
+    report every entity it knows about" — wire to None on the analyze
+    call but disable our own filter.
+    """
+    raw = os.environ.get("TGPROXY_PRESIDIO_ENTITIES", "").strip()
+    if not raw:
+        return None
+    if raw == "*":
+        return []  # sentinel: pass entities=None to engine.analyze
+    return [e.strip().upper() for e in raw.split(",") if e.strip()]
+
+
+def build_scanner(
+    model_name: Optional[str] = None,
+    entities: Optional[List[str]] = None,
+) -> Callable[[bytes, Hints], List[Finding]]:
     """Construct the scan callable for serve_scanner.
 
     model_name overrides the spaCy NER model. Default is whatever Presidio
     picks (currently `en_core_web_lg`, ~700MB resident). Override via the
     TGPROXY_PRESIDIO_MODEL environment variable when launched by tg-proxy.
+
+    entities filters which Presidio entity types are reported. None means
+    use DEFAULT_ENTITIES (a curated subset that excludes recognizers
+    known to be noisy on non-prose bodies — DATE_TIME, US_BANK_NUMBER,
+    US_DRIVER_LICENSE, US_ITIN). An empty list means pass entities=None
+    to Presidio, i.e. every recognizer the engine has fires. A non-empty
+    list overrides the default with exactly that set. Override via
+    TGPROXY_PRESIDIO_ENTITIES (comma-separated, or `*` for all).
 
     The Presidio import is local so a caller can `import tgproxy_presidio`
     in a context where Presidio isn't installed and only fail at engine-
@@ -102,6 +172,15 @@ def build_scanner(model_name: Optional[str] = None) -> Callable[[bytes, Hints], 
     """
     if model_name is None:
         model_name = os.environ.get("TGPROXY_PRESIDIO_MODEL", "")
+    if entities is None:
+        entities = _entities_from_env()
+        if entities is None:
+            entities = list(DEFAULT_ENTITIES)
+
+    # entities == [] means "let Presidio report everything" — we don't
+    # pass an entities filter to analyze() in that case. Otherwise we
+    # pin the list.
+    entities_arg: Optional[List[str]] = entities if entities else None
 
     from presidio_analyzer import AnalyzerEngine
 
@@ -127,7 +206,7 @@ def build_scanner(model_name: Optional[str] = None) -> Callable[[bytes, Hints], 
         ascii_only = len(text) == len(data)
         cb_map = None if ascii_only else char_to_byte_map(text)
 
-        results = engine.analyze(text=text, language="en")
+        results = engine.analyze(text=text, language="en", entities=entities_arg)
 
         findings: List[Finding] = []
         for r in results:

@@ -125,6 +125,12 @@ func New() *Scanner { return &Scanner{} }
 
 func (*Scanner) Name() string { return Name }
 
+// AcceptsTransforms opts this scanner in to the pipeline's transformed
+// passes. Code routinely appears base64-wrapped (`atob(...)`),
+// Unicode-confusable (`ⅾef foo()`), or hidden under `%`-encoded
+// envelopes — all of which the transformed views unwrap.
+func (*Scanner) AcceptsTransforms() bool { return true }
+
 func (*Scanner) Scan(_ context.Context, data []byte, _ api.Hints) ([]api.Finding, error) {
 	if len(data) == 0 {
 		return nil, nil

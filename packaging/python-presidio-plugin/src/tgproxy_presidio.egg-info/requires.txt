@@ -1,0 +1,3 @@
+tgproxy-plugin>=0.1.0
+presidio-analyzer>=2.2.0
+spacy>=3.4

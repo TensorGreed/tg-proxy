@@ -75,6 +75,13 @@ func New() *Scanner { return &Scanner{} }
 
 func (s *Scanner) Name() string { return Name }
 
+// AcceptsTransforms opts this scanner in to the pipeline's URL-decode,
+// NFKC, base64, whitespace-stitch, etc. passes. Regex PII detection
+// reliably benefits — `alice %40 example.com`, `alice @ example.com`,
+// `4 1 5-5 5 5-0 1 8 8`, fancy-digit credit cards, etc. all need the
+// transformed view to fire.
+func (*Scanner) AcceptsTransforms() bool { return true }
+
 func (s *Scanner) Scan(_ context.Context, data []byte, _ api.Hints) ([]api.Finding, error) {
 	if len(data) == 0 {
 		return nil, nil

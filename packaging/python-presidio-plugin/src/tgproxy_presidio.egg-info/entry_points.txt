@@ -1,0 +1,2 @@
+[console_scripts]
+tgproxy-presidio = tgproxy_presidio.__main__:main

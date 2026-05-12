@@ -1,3 +1,23 @@
+Metadata-Version: 2.4
+Name: tgproxy-presidio
+Version: 0.1.0
+Summary: Microsoft Presidio (PII NER) scanner plugin for tg-proxy.
+Author: TensorGreed
+License: MIT
+Project-URL: Homepage, https://github.com/TensorGreed/tg-proxy
+Project-URL: Repository, https://github.com/TensorGreed/tg-proxy
+Keywords: tg-proxy,pii,presidio,ner,scanner,plugin
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Security
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: tgproxy-plugin>=0.1.0
+Requires-Dist: presidio-analyzer>=2.2.0
+Requires-Dist: spacy>=3.4
+
 # tgproxy-presidio
 
 Microsoft Presidio scanner plugin for [tg-proxy](https://github.com/TensorGreed/tg-proxy).
@@ -39,35 +59,7 @@ Run tg-proxy as usual. The first request after startup may take a few extra seco
 
 Every finding emitted by this plugin is prefixed `pii.presidio.<entity_type>`, lowercased — for example `pii.presidio.email_address`, `pii.presidio.us_ssn`, `pii.presidio.person`. This deliberately doesn't clash with the built-in `pii.email`, `pii.ssn_us`, etc. Both fire when both detect the same span; the redactor coalesces overlapping ranges, so practical output is unchanged.
 
-## Entity filter (default: curated set)
-
-By default the plugin reports only a curated subset of Presidio's recognizers — `tgproxy_presidio.scanner.DEFAULT_ENTITIES`. The default set:
-
-```
-PERSON, LOCATION, NRP,
-EMAIL_ADDRESS, PHONE_NUMBER, IP_ADDRESS, URL,
-CREDIT_CARD, IBAN_CODE, CRYPTO,
-US_SSN, US_PASSPORT, UK_NHS, AU_TFN, AU_ACN, AU_ABN, AU_MEDICARE,
-MEDICAL_LICENSE
-```
-
-Three Presidio recognizers are **excluded** by default because they fire at score 0.85 on bare integers and common English words, which is unworkable for proxying real config files and code review prose:
-
-- **`DATE_TIME`** — matches numbers like `10485760`, `4096` and words like `Tuesday`, `morning`, `the same day`.
-- **`US_BANK_NUMBER`** — fires on any long digit string without a useful context filter.
-- **`US_DRIVER_LICENSE`** — same recognizer family.
-
-Override via the `TGPROXY_PRESIDIO_ENTITIES` env var (comma-separated, uppercase):
-
-```bash
-# Opt DATE_TIME back in alongside the default set:
-export TGPROXY_PRESIDIO_ENTITIES=PERSON,LOCATION,EMAIL_ADDRESS,PHONE_NUMBER,IBAN_CODE,US_SSN,DATE_TIME
-
-# Or "*" to let every Presidio recognizer report:
-export TGPROXY_PRESIDIO_ENTITIES="*"
-```
-
-To disable individual recognizers entirely (rather than just filtering their output), `AnalyzerEngine` exposes `registry.remove_recognizer(name)` — extend the plugin if you need that level of control.
+To suppress entity types you don't want, filter by finding type in your custom redactor, or disable individual recognizers by extending the plugin (`AnalyzerEngine` exposes `registry.remove_recognizer(name)`).
 
 ## What you get over the built-in PII scanner
 

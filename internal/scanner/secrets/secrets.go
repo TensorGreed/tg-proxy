@@ -270,6 +270,13 @@ func New() *Scanner { return &Scanner{} }
 
 func (*Scanner) Name() string { return Name }
 
+// AcceptsTransforms opts this scanner in to the pipeline's URL-decode,
+// NFKC, base64, whitespace-stitch passes. Secrets routinely arrive
+// wrapped — `Authorization: Bearer ghp%5F…`, AWS keys split across two
+// lines, JWTs base64-encoded inside another base64 envelope — and the
+// transformed views are how we catch them.
+func (*Scanner) AcceptsTransforms() bool { return true }
+
 func (*Scanner) Scan(_ context.Context, data []byte, _ api.Hints) ([]api.Finding, error) {
 	if len(data) == 0 {
 		return nil, nil

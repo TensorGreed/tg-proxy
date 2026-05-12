@@ -18,15 +18,38 @@ import (
 )
 
 type Pipeline struct {
-	scanners []api.Scanner
-	redactor api.Redactor
+	scanners          []api.Scanner
+	transformScanners []api.Scanner
+	redactor          api.Redactor
+}
+
+// transformAware is the opt-in marker for scanners that want to be invoked
+// on the pipeline's transformed views of the body (URL-decode, NFKC,
+// base64-decode, SQL comment strip, whitespace stitch). Built-in regex
+// scanners implement it; plugin scanners default off because they
+// typically bring their own context awareness (NER, semantic parsers)
+// and don't benefit from synthetic stitched/decoded views — and in
+// practice are harmed by them (e.g. NER firing on a fused mega-token
+// that pattern-matches as a URL).
+type transformAware interface {
+	AcceptsTransforms() bool
 }
 
 // New constructs a Pipeline. scanners may be empty (Process becomes a no-op),
 // and redactor may be nil (findings are reported but the body is not
 // rewritten).
 func New(scanners []api.Scanner, redactor api.Redactor) *Pipeline {
-	return &Pipeline{scanners: scanners, redactor: redactor}
+	var transformScanners []api.Scanner
+	for _, s := range scanners {
+		if ta, ok := s.(transformAware); ok && ta.AcceptsTransforms() {
+			transformScanners = append(transformScanners, s)
+		}
+	}
+	return &Pipeline{
+		scanners:          scanners,
+		transformScanners: transformScanners,
+		redactor:          redactor,
+	}
 }
 
 // Scanners returns the underlying scanners for callers (e.g. StreamProcessor)
@@ -71,6 +94,12 @@ type Result struct {
 // Each pass's findings are mapped back to byte ranges in the original
 // buffer and deduped against earlier findings by `(type, range)`.
 //
+// Transformed passes only fan out to scanners that implement the
+// AcceptsTransforms() bool opt-in. Built-in regex scanners (pii,
+// secrets, sqli, code) opt in; external plugins default off so an NER
+// model isn't asked to interpret synthetic mega-tokens produced by
+// stitching whitespace out of prose.
+//
 // Exported so streaming callers can reuse the same fan-out without going
 // through Process (which also runs the redactor). Note: the streaming
 // path (StreamProcessor) calls ScanWith directly and therefore does NOT
@@ -82,6 +111,13 @@ func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]ap
 	}
 
 	findings, scanErr := ScanWith(ctx, p.scanners, data, hints)
+
+	// Transformed passes only fan out to scanners that opted in via
+	// AcceptsTransforms(). Skip the per-transform pre-checks entirely
+	// when no scanner wants them — saves a body walk per pre-check.
+	if len(p.transformScanners) == 0 {
+		return findings, scanErr
+	}
 
 	if containsPercent(data) {
 		extra, err := p.transformedPass(ctx, data, hints, urlDecode)
@@ -140,7 +176,7 @@ func (p *Pipeline) transformedPass(
 	if origIdx == nil || bytes.Equal(transformed, data) {
 		return nil, nil
 	}
-	findings, err := ScanWith(ctx, p.scanners, transformed, hints)
+	findings, err := ScanWith(ctx, p.transformScanners, transformed, hints)
 	mapped := findings[:0]
 	for _, f := range findings {
 		if f.Start < 0 || f.End > len(origIdx)-1 || f.Start >= f.End {
