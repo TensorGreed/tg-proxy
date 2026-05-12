@@ -184,6 +184,134 @@ func TestScan_ASCIIOnlySkipsNFKC(t *testing.T) {
 	assert.Len(t, a, len(b))
 }
 
+// plainRecorder is a scanner that records every body it sees but doesn't
+// implement AcceptsTransforms() — represents the plugin-scanner default.
+type plainRecorder struct {
+	name   string
+	bodies *[]string
+}
+
+func (p *plainRecorder) Name() string { return p.name }
+func (p *plainRecorder) Scan(_ context.Context, data []byte, _ api.Hints) ([]api.Finding, error) {
+	*p.bodies = append(*p.bodies, string(data))
+	return nil, nil
+}
+
+// optInRecorder records every body it sees and implements the
+// AcceptsTransforms() opt-in. `wants` controls whether it returns
+// true (sees transformed views) or false (excluded).
+type optInRecorder struct {
+	name   string
+	wants  bool
+	bodies *[]string
+}
+
+func (o *optInRecorder) Name() string             { return o.name }
+func (o *optInRecorder) AcceptsTransforms() bool  { return o.wants }
+func (o *optInRecorder) Scan(_ context.Context, data []byte, _ api.Hints) ([]api.Finding, error) {
+	*o.bodies = append(*o.bodies, string(data))
+	return nil, nil
+}
+
+func TestPipeline_DefaultScannerIsExcludedFromTransformedPasses(t *testing.T) {
+	// A scanner that doesn't implement AcceptsTransforms gets the raw body
+	// only — no URL-decoded, NFKC, etc. views. This is what protects NER
+	// plugins like Presidio from being asked to interpret synthetic
+	// stitched mega-tokens.
+	var calls []string
+	r := &plainRecorder{name: "default", bodies: &calls}
+
+	p := New([]api.Scanner{r}, nil)
+	// Body that would trigger URL-decode, base64 candidate, and
+	// whitespace-stitch pre-checks if the scanner had opted in.
+	input := []byte("alice%40example.com aGVsbG8gd29ybGQAAAAAAAAA  4 1 5 5 5 5 0 1 8 8")
+	_, err := p.Scan(context.Background(), input, api.Hints{})
+	require.NoError(t, err)
+
+	require.Len(t, calls, 1, "default scanner must see exactly one body — the raw one")
+	assert.Equal(t, string(input), calls[0])
+}
+
+func TestPipeline_ExplicitFalseOptOutIsExcluded(t *testing.T) {
+	// AcceptsTransforms() returning false is treated the same as not
+	// implementing the marker at all.
+	var calls []string
+	r := &optInRecorder{name: "opted-out", wants: false, bodies: &calls}
+
+	p := New([]api.Scanner{r}, nil)
+	_, err := p.Scan(context.Background(), []byte("alice%40example.com"), api.Hints{})
+	require.NoError(t, err)
+
+	require.Len(t, calls, 1)
+	assert.Equal(t, "alice%40example.com", calls[0])
+}
+
+func TestPipeline_OptInScannerSeesTransformedBodies(t *testing.T) {
+	// AcceptsTransforms() = true means the URL-decoded view reaches the
+	// scanner — observable by recording every body and checking that the
+	// decoded form is among them.
+	var calls []string
+	r := &optInRecorder{name: "opted-in", wants: true, bodies: &calls}
+
+	p := New([]api.Scanner{r}, nil)
+	_, err := p.Scan(context.Background(), []byte("alice%40example.com"), api.Hints{})
+	require.NoError(t, err)
+
+	assert.GreaterOrEqual(t, len(calls), 2, "opt-in scanner should see raw + at least one transformed view")
+	var sawDecoded bool
+	for _, b := range calls {
+		if b == "alice@example.com" {
+			sawDecoded = true
+			break
+		}
+	}
+	assert.True(t, sawDecoded, "opt-in scanner should have received the URL-decoded body; got: %v", calls)
+}
+
+func TestPipeline_MixedScannersIsolateTransforms(t *testing.T) {
+	// Two scanners side by side: one opted in, one not. The transformed
+	// pass must fan out only to the opted-in one.
+	var inCalls, outCalls []string
+	in := &optInRecorder{name: "in", wants: true, bodies: &inCalls}
+	out := &plainRecorder{name: "out", bodies: &outCalls}
+
+	p := New([]api.Scanner{in, out}, nil)
+	_, err := p.Scan(context.Background(), []byte("alice%40example.com"), api.Hints{})
+	require.NoError(t, err)
+
+	// Opted-out scanner sees the raw body only.
+	require.Len(t, outCalls, 1)
+	assert.Equal(t, "alice%40example.com", outCalls[0])
+
+	// Opted-in scanner sees raw + URL-decoded.
+	assert.GreaterOrEqual(t, len(inCalls), 2)
+	var sawDecoded bool
+	for _, b := range inCalls {
+		if b == "alice@example.com" {
+			sawDecoded = true
+		}
+	}
+	assert.True(t, sawDecoded)
+}
+
+func TestPipeline_AllOptOutShortCircuitsPreChecks(t *testing.T) {
+	// When no scanner opts in, the transformed-pass pre-checks never run.
+	// We can't directly observe the pre-checks, but the scanner must be
+	// called exactly once — which is the production-relevant invariant.
+	var calls []string
+	r := &plainRecorder{name: "default", bodies: &calls}
+
+	p := New([]api.Scanner{r}, nil)
+	// Body that hits every pre-check simultaneously: `%` for URL-decode,
+	// non-ASCII (full-width @) for NFKC, base64-eligible run, whitespace
+	// for stitch, `/*` for SQL comment strip.
+	input := []byte("alice%40＠example.com /* aGVsbG8gd29ybGQAAAA */  x y z")
+	_, err := p.Scan(context.Background(), input, api.Hints{})
+	require.NoError(t, err)
+
+	assert.Len(t, calls, 1, "no opt-in scanners → exactly one scan, regardless of body content")
+}
+
 func TestProcess_ScannersRunConcurrently(t *testing.T) {
 	const n = 50
 	scanners := make([]api.Scanner, n)
