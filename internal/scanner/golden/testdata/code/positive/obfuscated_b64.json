@@ -1,0 +1,6 @@
+{
+  "comment": "GRADUATED from adversarial: Python `def foo(): pass` base64-encoded inside a JavaScript eval(atob(...)). The base64 pre-pass decodes the candidate, the code scanner sees the decoded Python, and the mapped offsets cover the original base64 span in the source.",
+  "findings": [
+    {"type": "code.python_def", "match": "ZGVmIGZvbygpOiBwYXNzCgpyZXR1cm4gMQ=="}
+  ]
+}

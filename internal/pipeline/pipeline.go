@@ -55,6 +55,9 @@ type Result struct {
 //   - NFKC-normalized view (when non-ASCII is present): catches Unicode
 //     confusables and lookalikes — `ⅾef foo()` → `def foo()`, `ⅽlass` →
 //     `class`, full-width `＠` → `@`, ligatures, fancy digits, etc.
+//   - Base64-decoded view (when a 16+ char base64-alphabet run is present
+//     and decodes to mostly-printable bytes): catches secrets and code
+//     wrapped inside `atob(...)`, env-vars set to base64 blobs, etc.
 //
 // Each pass's findings are mapped back to byte ranges in the original
 // buffer and deduped against earlier findings by `(type, range)`.
@@ -79,6 +82,12 @@ func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]ap
 
 	if containsNonASCII(data) {
 		extra, err := p.transformedPass(ctx, data, hints, nfkcNormalize)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
+	}
+
+	if containsBase64Candidate(data) {
+		extra, err := p.transformedPass(ctx, data, hints, base64Decode)
 		scanErr = errors.Join(scanErr, err)
 		findings = mergeNew(findings, extra)
 	}

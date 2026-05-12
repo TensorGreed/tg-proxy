@@ -1,6 +1,0 @@
-{
-  "comment": "Python `def foo(): pass` base64-encoded inside a JavaScript eval(atob(...)). Fix needs a base64-decode pre-pass on long base64 blobs.",
-  "ideal_findings": [
-    {"type": "code.python_def", "match": "ZGVmIGZvbygpOiBwYXNzCgpyZXR1cm4gMQ=="}
-  ]
-}
