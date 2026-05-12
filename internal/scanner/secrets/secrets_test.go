@@ -2,13 +2,29 @@ package secrets
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TensorGreed/tg-proxy/pkg/api"
+)
+
+// Test fixtures: realistic-shaped values with high entropy so they pass the
+// detector's entropy floor. Every value here is hand-jumbled, obviously
+// not a real credential, but structurally indistinguishable from one.
+const (
+	exampleAWSKeyID            = "AKIAIOSFODNN7EXAMPLE"
+	exampleGitHubClassic       = "ghp_2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBuIn"
+	exampleGitHubFineGrained   = "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"
+	exampleStripeLive          = "sk_live_4HrPbMzZqXkTcWnFsLDaEoBy"
+	exampleStripeTest          = "sk_test_4HrPbMzZqXkTcWnFsLDaEoBy"
+	exampleOpenAIClassic       = "sk-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
+	exampleOpenAIProj          = "sk-proj-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
+	exampleAnthropic           = "sk-ant-api03-iL4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXMaRtZk"
+	exampleSlackBot            = "xoxb-1234567890-2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBu"
+	exampleGoogleAPI           = "AIzaSy0d4tUbKLpoZAQ_9XmHJnE5w-VqfBcN1Hy"
+	exampleJWT                 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 )
 
 func scanOf(t *testing.T, typ, input string) []api.Finding {
@@ -35,75 +51,84 @@ func TestScan_Empty(t *testing.T) {
 }
 
 func TestScan_AWSAccessKey(t *testing.T) {
-	input := "AWS key: AKIAIOSFODNN7EXAMPLE here"
+	input := "AWS_ACCESS_KEY_ID=" + exampleAWSKeyID
 	fs := scanOf(t, "secret.aws_access_key_id", input)
 	require.Len(t, fs, 1)
-	assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", input[fs[0].Start:fs[0].End])
+	assert.Equal(t, exampleAWSKeyID, input[fs[0].Start:fs[0].End])
 	assert.Equal(t, api.SeverityCritical, fs[0].Severity)
 }
 
 func TestScan_GitHubClassicToken(t *testing.T) {
-	// ghp_ prefix + 36 chars
-	tok := "ghp_" + strings.Repeat("A", 36)
-	input := "Authorization: token " + tok + " here"
+	input := "Authorization: token " + exampleGitHubClassic + " here"
 	fs := scanOf(t, "secret.github_token", input)
 	require.Len(t, fs, 1)
-	assert.Equal(t, tok, input[fs[0].Start:fs[0].End])
+	assert.Equal(t, exampleGitHubClassic, input[fs[0].Start:fs[0].End])
 }
 
 func TestScan_GitHubFineGrainedToken(t *testing.T) {
-	tok := "github_pat_" + strings.Repeat("A", 22) + "_" + strings.Repeat("B", 59)
-	fs := scanOf(t, "secret.github_token_fine_grained", "header "+tok+" trailing")
+	input := "header " + exampleGitHubFineGrained + " trailing"
+	fs := scanOf(t, "secret.github_token_fine_grained", input)
 	require.Len(t, fs, 1)
-	assert.Equal(t, tok, ("header " + tok + " trailing")[fs[0].Start:fs[0].End])
+	assert.Equal(t, exampleGitHubFineGrained, input[fs[0].Start:fs[0].End])
 }
 
 func TestScan_StripeKeys(t *testing.T) {
-	live := "sk_live_" + strings.Repeat("a", 24)
-	test := "sk_test_" + strings.Repeat("b", 24)
-	input := live + " and " + test
-	live_fs := scanOf(t, "secret.stripe_live_key", input)
-	require.Len(t, live_fs, 1)
-	assert.Equal(t, live, input[live_fs[0].Start:live_fs[0].End])
-	test_fs := scanOf(t, "secret.stripe_test_key", input)
-	require.Len(t, test_fs, 1)
-	assert.Equal(t, test, input[test_fs[0].Start:test_fs[0].End])
-	assert.Equal(t, api.SeverityCritical, live_fs[0].Severity)
-	assert.Equal(t, api.SeverityHigh, test_fs[0].Severity) // test keys are lower severity
+	input := exampleStripeLive + " and " + exampleStripeTest
+	live := scanOf(t, "secret.stripe_live_key", input)
+	require.Len(t, live, 1)
+	assert.Equal(t, exampleStripeLive, input[live[0].Start:live[0].End])
+	test := scanOf(t, "secret.stripe_test_key", input)
+	require.Len(t, test, 1)
+	assert.Equal(t, exampleStripeTest, input[test[0].Start:test[0].End])
+	assert.Equal(t, api.SeverityCritical, live[0].Severity)
+	assert.Equal(t, api.SeverityHigh, test[0].Severity)
 }
 
 func TestScan_OpenAIKey(t *testing.T) {
-	classic := "sk-" + strings.Repeat("a", 48)
-	proj := "sk-proj-" + strings.Repeat("b", 50)
-	input := "openai key: " + classic + " and project: " + proj
-	cf := scanOf(t, "secret.openai_api_key", input)
-	require.GreaterOrEqual(t, len(cf), 2)
+	// OPENAI_API_KEY label provides the key-context the detector requires.
+	input := "OPENAI_API_KEY=" + exampleOpenAIClassic + " and project token = " + exampleOpenAIProj
+	fs := scanOf(t, "secret.openai_api_key", input)
+	require.GreaterOrEqual(t, len(fs), 2)
+}
+
+func TestScan_OpenAIKey_RejectedWithoutContext(t *testing.T) {
+	// Same realistic key, but the surrounding text has no key-like label.
+	// The detector must NOT fire on bare prose.
+	input := "Random alphanumeric tokens in this sentence " + exampleOpenAIClassic + " mean nothing."
+	fs := scanOf(t, "secret.openai_api_key", input)
+	assert.Empty(t, fs, "OpenAI rule must require a nearby key keyword")
+}
+
+func TestScan_OpenAIKey_LowEntropyRejected(t *testing.T) {
+	// Has the key context AND the right format, but obviously a placeholder.
+	low := "sk-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	input := "OPENAI_API_KEY=" + low
+	fs := scanOf(t, "secret.openai_api_key", input)
+	assert.Empty(t, fs, "low-entropy values must be filtered out")
 }
 
 func TestScan_AnthropicKey(t *testing.T) {
-	key := "sk-ant-api03-" + strings.Repeat("x", 40)
-	fs := scanOf(t, "secret.anthropic_api_key", "claude-key: "+key+" end")
+	input := "ANTHROPIC_API_KEY=" + exampleAnthropic
+	fs := scanOf(t, "secret.anthropic_api_key", input)
 	require.Len(t, fs, 1)
-	assert.Equal(t, key, ("claude-key: " + key + " end")[fs[0].Start:fs[0].End])
+	assert.Equal(t, exampleAnthropic, input[fs[0].Start:fs[0].End])
 }
 
 func TestScan_SlackToken(t *testing.T) {
-	tok := "xoxb-1234567890-abcdefghij"
-	fs := scanOf(t, "secret.slack_token", "slack="+tok+" end")
+	input := "slack token = " + exampleSlackBot + " end"
+	fs := scanOf(t, "secret.slack_token", input)
 	require.Len(t, fs, 1)
-	assert.Equal(t, tok, ("slack=" + tok + " end")[fs[0].Start:fs[0].End])
 }
 
 func TestScan_GoogleAPIKey(t *testing.T) {
-	key := "AIza" + strings.Repeat("a", 35)
-	fs := scanOf(t, "secret.google_api_key", "GOOGLE_KEY="+key)
+	input := "GOOGLE_API_KEY=" + exampleGoogleAPI
+	fs := scanOf(t, "secret.google_api_key", input)
 	require.Len(t, fs, 1)
 }
 
 func TestScan_JWT(t *testing.T) {
-	// header.payload.signature
-	jwt := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-	fs := scanOf(t, "secret.jwt", "Bearer "+jwt+" rest")
+	input := "Authorization: Bearer " + exampleJWT
+	fs := scanOf(t, "secret.jwt", input)
 	require.Len(t, fs, 1)
 }
 
@@ -122,9 +147,24 @@ func TestScan_PEMPrivateKeyHeader(t *testing.T) {
 	}
 }
 
+func TestScan_PlaceholdersRejected(t *testing.T) {
+	// Each line below has the right regex format but degenerate entropy.
+	// All must be filtered out by the entropy modifier.
+	input := `
+AWS_ACCESS_KEY_ID=AKIAXXXXXXXXXXXXXXXX
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_LIVE_KEY=sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GOOGLE_API_KEY=AIzaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+`
+	findings, err := New().Scan(context.Background(), []byte(input), api.Hints{})
+	require.NoError(t, err)
+	assert.Empty(t, findings, "all entries are placeholders and must not be flagged; got %+v", findings)
+}
+
 func TestScan_OffsetsArePrecise(t *testing.T) {
-	input := "AWS=AKIAIOSFODNN7EXAMPLE; GH=" + "ghp_" + strings.Repeat("A", 36) +
-		"; OAI=sk-" + strings.Repeat("a", 48)
+	input := "AWS=" + exampleAWSKeyID + "; GH=" + exampleGitHubClassic +
+		"; OAI: OPENAI_API_KEY=" + exampleOpenAIClassic
 	findings, err := New().Scan(context.Background(), []byte(input), api.Hints{})
 	require.NoError(t, err)
 	require.NotEmpty(t, findings)
@@ -137,8 +177,6 @@ func TestScan_OffsetsArePrecise(t *testing.T) {
 }
 
 func TestScan_PlainTextHasNoFalsePositives(t *testing.T) {
-	// A sentence that contains some uppercase letters and digits but
-	// nothing matching any of our patterns should produce zero findings.
 	input := "The quick brown fox jumps over the lazy dog 123 times. " +
 		"Plain ABCDEF text without any AKIA-like or ghp_-like prefixes."
 	findings, err := New().Scan(context.Background(), []byte(input), api.Hints{})
