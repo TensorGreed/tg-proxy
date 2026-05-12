@@ -1,0 +1,4 @@
+Engineering meeting notes:
+Should we choose this option or that one for the migration?
+We need to pick a strategy by Friday. Database changes are coordinated
+with the platform team.

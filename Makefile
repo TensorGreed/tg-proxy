@@ -8,7 +8,7 @@ COVER_OUT   := coverage.out
 COVER_HTML  := coverage.html
 COVER_MIN   ?= 80
 
-.PHONY: all build run test test-short cover cover-html cover-check lint tidy proto clean
+.PHONY: all build run test test-short cover cover-html cover-check lint tidy proto golden clean
 
 all: lint test build
 
@@ -56,6 +56,11 @@ proto:
 	    --pyi_out=$(PY_PROTO_DIR) \
 	    $(PROTO_DIR)/plugin.proto
 	@python -c "import re, pathlib; p=pathlib.Path('$(PY_PROTO_DIR)/plugin_pb2_grpc.py'); p.write_text(re.sub(r'^import plugin_pb2 as plugin__pb2$$', 'from . import plugin_pb2 as plugin__pb2', p.read_text(), flags=re.M))"
+
+# Run the scanner regression corpus with verbose output so you see the
+# per-detector precision/recall table.
+golden:
+	$(GO) test -v ./internal/scanner/golden/...
 
 clean:
 	rm -rf bin dist $(COVER_OUT) $(COVER_HTML)

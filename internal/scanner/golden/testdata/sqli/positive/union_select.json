@@ -1,0 +1,6 @@
+{
+  "comment": "Classic union-based extraction in a query string.",
+  "findings": [
+    {"type": "sqli.union_select", "match": "UNION SELECT"}
+  ]
+}

@@ -1,0 +1,1 @@
+login=admin' OR 1=1; DROP TABLE sessions--

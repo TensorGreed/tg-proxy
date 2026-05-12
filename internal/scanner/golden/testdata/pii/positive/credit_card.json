@@ -1,0 +1,7 @@
+{
+  "comment": "Visa + MasterCard test PANs, both Luhn-valid, hyphen and space delimiters.",
+  "findings": [
+    {"type": "pii.credit_card", "match": "4111-1111-1111-1111"},
+    {"type": "pii.credit_card", "match": "5500 0000 0000 0004"}
+  ]
+}

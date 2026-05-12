@@ -1,0 +1,5 @@
+We discussed refactoring the order-processing module to be simpler.
+The function that computes totals is currently doing too much; we want
+to split it apart and add tests for each piece. Class hierarchies in
+the customer module are also confusing — multiple inheritance has bitten
+us twice this quarter.

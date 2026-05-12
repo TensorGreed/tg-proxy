@@ -1,0 +1,6 @@
+{
+  "comment": "Time-based blind SLEEP() payload embedded in JSON.",
+  "findings": [
+    {"type": "sqli.time_based", "match": "SLEEP("}
+  ]
+}

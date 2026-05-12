@@ -53,8 +53,12 @@ var detectors = []detector{
 		confidence: 0.85,
 	},
 	{
+		// JavaScript / TypeScript arrow operator. `=>` is unambiguous in
+		// JS (the >= comparison operator is the other byte order); we
+		// require a following separator so `a=>` in a URL query string
+		// doesn't fire (and to keep the match minimal for redaction).
 		typ:        "code.javascript_arrow",
-		pattern:    regexp.MustCompile(`=>\s*[{(]`),
+		pattern:    regexp.MustCompile(`=>[\s{(]`),
 		severity:   api.SeverityLow,
 		confidence: 0.55,
 	},

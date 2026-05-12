@@ -1,0 +1,9 @@
+{
+  "service": "billing",
+  "region": "us-west-2",
+  "max_retries": 3,
+  "endpoints": {
+    "health": "/healthz",
+    "metrics": "/metrics"
+  }
+}

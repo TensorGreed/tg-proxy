@@ -1,0 +1,7 @@
+{
+  "comment": "Two attacks on one payload: tautology auth bypass + chained DDL.",
+  "findings": [
+    {"type": "sqli.tautology",        "match": "OR 1=1"},
+    {"type": "sqli.statement_chain",  "match": "; DROP"}
+  ]
+}

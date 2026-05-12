@@ -1,0 +1,9 @@
+{
+  "comment": "One of each detector type that the PII scanner ships with.",
+  "findings": [
+    {"type": "pii.email",    "match": "bob@example.org"},
+    {"type": "pii.phone_us", "match": "(415) 555-0199"},
+    {"type": "pii.ssn_us",   "match": "123-45-6789"},
+    {"type": "pii.ipv4",     "match": "192.168.1.42"}
+  ]
+}

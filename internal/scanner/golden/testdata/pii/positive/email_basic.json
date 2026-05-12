@@ -1,0 +1,7 @@
+{
+  "comment": "Two emails, one with a + alias and a multi-level TLD.",
+  "findings": [
+    {"type": "pii.email", "match": "alice@example.com"},
+    {"type": "pii.email", "match": "support+billing@acme.co.uk"}
+  ]
+}

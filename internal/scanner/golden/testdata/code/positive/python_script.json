@@ -1,0 +1,9 @@
+{
+  "comment": "A typical Python file. Multiple signatures should fire.",
+  "findings": [
+    {"type": "code.shebang",         "match": "#!/usr/bin/env python3"},
+    {"type": "code.python_import",   "match": "import os"},
+    {"type": "code.python_class",    "match": "class OrderProcessor:"},
+    {"type": "code.python_def",      "match": "def __init__("}
+  ]
+}

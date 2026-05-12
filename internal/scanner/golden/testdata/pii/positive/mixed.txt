@@ -1,0 +1,5 @@
+Customer record (sanitized):
+  email: bob@example.org
+  phone: (415) 555-0199
+  legacy id: 123-45-6789
+  last login from 192.168.1.42 yesterday

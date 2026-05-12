@@ -1,0 +1,8 @@
+{
+  "comment": "Tiny Go program — package decl + two funcs.",
+  "findings": [
+    {"type": "code.go_package", "match": "package main"},
+    {"type": "code.go_func",    "match": "func greet("},
+    {"type": "code.go_func",    "match": "func main("}
+  ]
+}

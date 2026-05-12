@@ -1,0 +1,9 @@
+{
+  "comment": "Express setup hitting four distinct JS detectors.",
+  "findings": [
+    {"type": "code.javascript_require",  "match": "require(\"express\")"},
+    {"type": "code.javascript_function", "match": "function startServer("},
+    {"type": "code.javascript_arrow",    "match": "=> res"},
+    {"type": "code.javascript_console",  "match": "console.log("}
+  ]
+}

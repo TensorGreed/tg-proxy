@@ -1,0 +1,4 @@
+The quarterly report covers the period from January to March.
+Last year we processed roughly 12,500 transactions across three regions.
+The team grew by four people, bringing us to twenty-two engineers.
+No customer-identifying information appears anywhere in this paragraph.

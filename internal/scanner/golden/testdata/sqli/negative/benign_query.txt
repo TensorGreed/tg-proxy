@@ -1,0 +1,2 @@
+Could you write me a SELECT statement that joins users and orders
+on user_id and groups by month? I want a count per month for the past year.

@@ -1,0 +1,4 @@
+Order id 4111111111111112 (last digit broken, fails Luhn).
+Reference number 4155550199 — no separators, should not be a phone.
+Generated id 999.1.1.1 has an out-of-range octet; not a valid IPv4.
+Tracking 123456789 is a 9-digit code, not an SSN (no hyphens).

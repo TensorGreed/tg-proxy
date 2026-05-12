@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+import os
+from collections import defaultdict
+
+
+class OrderProcessor:
+    def __init__(self, db):
+        self.db = db
+
+    def total(self, customer_id):
+        return sum(o.amount for o in self.db.orders(customer_id))
