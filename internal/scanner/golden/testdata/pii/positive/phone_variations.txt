@@ -1,0 +1,5 @@
+Customer support contacts (multiple US phone formats):
+  Sales:        (212) 555-0143
+  Support:      415-555-0188
+  Toll-free:    +1 800-555-0100
+  Fax:          312.555.0177

@@ -1,0 +1,10 @@
+{
+  "customer": {
+    "id": 4421,
+    "email": "carol@example.io",
+    "preferences": {
+      "newsletter": true,
+      "contact_email": "carol.backup@example.org"
+    }
+  }
+}

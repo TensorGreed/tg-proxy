@@ -1,0 +1,7 @@
+{
+  "comment": "SQL DDL — `CREATE TABLE` plus `CREATE INDEX`. Both should fire the sql_create rule.",
+  "findings": [
+    {"type": "code.sql_create", "match": "CREATE TABLE orders"},
+    {"type": "code.sql_create", "match": "CREATE INDEX idx_orders_customer"}
+  ]
+}

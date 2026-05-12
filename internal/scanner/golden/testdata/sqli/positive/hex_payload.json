@@ -1,0 +1,6 @@
+{
+  "comment": "Hex-encoded payload used to smuggle strings past simple filters.",
+  "findings": [
+    {"type": "sqli.hex_payload", "match": "0x4142434445464748494a4b4c4d4e4f5051525354"}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "comment": "Java class declaration with `public class`.",
+  "findings": [
+    {"type": "code.java_class_decl", "match": "public class OrderService"}
+  ]
+}

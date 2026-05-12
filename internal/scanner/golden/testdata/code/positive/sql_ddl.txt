@@ -1,0 +1,8 @@
+CREATE TABLE orders (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL,
+  total NUMERIC(10,2),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_orders_customer ON orders(customer_id);

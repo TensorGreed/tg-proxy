@@ -1,0 +1,6 @@
+{
+  "comment": "Bash launcher — shebang plus standard set flags.",
+  "findings": [
+    {"type": "code.shebang", "match": "#!/bin/bash"}
+  ]
+}

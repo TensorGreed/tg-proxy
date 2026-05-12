@@ -1,0 +1,9 @@
+{
+  "comment": "Four common US phone formats — paren, hyphen, +1, dot. All four detector branches should fire.",
+  "findings": [
+    {"type": "pii.phone_us", "match": "(212) 555-0143"},
+    {"type": "pii.phone_us", "match": "415-555-0188"},
+    {"type": "pii.phone_us", "match": "+1 800-555-0100"},
+    {"type": "pii.phone_us", "match": "312.555.0177"}
+  ]
+}

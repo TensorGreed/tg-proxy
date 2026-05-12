@@ -1,0 +1,7 @@
+{
+  "comment": "Two emails inside a nested JSON body — the realistic shape of an LLM prompt or API request body.",
+  "findings": [
+    {"type": "pii.email", "match": "carol@example.io"},
+    {"type": "pii.email", "match": "carol.backup@example.org"}
+  ]
+}

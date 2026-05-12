@@ -1,0 +1,11 @@
+service: billing
+region: us-west-2
+replicas: 3
+endpoints:
+  - path: /healthz
+    method: GET
+  - path: /metrics
+    method: GET
+resources:
+  cpu: 500m
+  memory: 256Mi

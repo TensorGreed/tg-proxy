@@ -1,0 +1,13 @@
+# Architecture overview
+
+The system is composed of three services that communicate over gRPC.
+Each service has its own database and exposes a REST API for external
+clients. The billing service handles invoices and recurring charges.
+Authentication is delegated to a shared identity provider; tokens are
+short-lived and rotate hourly.
+
+## Tradeoffs
+
+We considered a monolith but the operational independence of separate
+services was worth the integration complexity. Documentation lives in
+this repository alongside the code it describes.

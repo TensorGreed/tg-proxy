@@ -1,0 +1,4 @@
+I'd like to write a query that joins users on user_id and groups by month.
+What's the right way to handle NULL values in the GROUP BY clause when one
+side of the join has missing rows? Also, should we add an index on
+created_at to speed up the WHERE filter?

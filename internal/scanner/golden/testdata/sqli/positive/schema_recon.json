@@ -1,0 +1,7 @@
+{
+  "comment": "Schema reconnaissance via UNION over information_schema. Two distinct SQLi detectors fire on a single payload.",
+  "findings": [
+    {"type": "sqli.union_select", "match": "UNION SELECT"},
+    {"type": "sqli.schema_recon", "match": "information_schema"}
+  ]
+}

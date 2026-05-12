@@ -1,0 +1,5 @@
+PR review:
+This change adds a LIMIT clause to the listing query and reorders the WHERE
+conditions to take advantage of the new index. We expect roughly 90% fewer
+scanned rows. The migration also adds a check constraint preventing NULL
+order amounts going forward.

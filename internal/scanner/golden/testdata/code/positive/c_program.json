@@ -1,0 +1,8 @@
+{
+  "comment": "C source with three #include directives — system, library, and local quoted.",
+  "findings": [
+    {"type": "code.c_include", "match": "#include <stdio.h>"},
+    {"type": "code.c_include", "match": "#include <stdlib.h>"},
+    {"type": "code.c_include", "match": "#include \"config.h\""}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "comment": "MS-SQL stored-procedure abuse to execute shell commands. Critical severity.",
+  "findings": [
+    {"type": "sqli.xp_cmdshell", "match": "xp_cmdshell"}
+  ]
+}
