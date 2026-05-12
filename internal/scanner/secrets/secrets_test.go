@@ -14,17 +14,30 @@ import (
 // detector's entropy floor. Every value here is hand-jumbled, obviously
 // not a real credential, but structurally indistinguishable from one.
 const (
-	exampleAWSKeyID            = "AKIAIOSFODNN7EXAMPLE"
-	exampleGitHubClassic       = "ghp_2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBuIn"
-	exampleGitHubFineGrained   = "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"
-	exampleStripeLive          = "sk_live_4HrPbMzZqXkTcWnFsLDaEoBy"
-	exampleStripeTest          = "sk_test_4HrPbMzZqXkTcWnFsLDaEoBy"
-	exampleOpenAIClassic       = "sk-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
-	exampleOpenAIProj          = "sk-proj-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
-	exampleAnthropic           = "sk-ant-api03-iL4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXMaRtZk"
-	exampleSlackBot            = "xoxb-1234567890-2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBu"
-	exampleGoogleAPI           = "AIzaSy0d4tUbKLpoZAQ_9XmHJnE5w-VqfBcN1Hy"
-	exampleJWT                 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+	exampleAWSKeyID          = "AKIAIOSFODNN7EXAMPLE"
+	exampleGitHubClassic     = "ghp_2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBuIn"
+	exampleGitHubFineGrained = "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"
+	exampleStripeLive        = "sk_live_4HrPbMzZqXkTcWnFsLDaEoBy"
+	exampleStripeTest        = "sk_test_4HrPbMzZqXkTcWnFsLDaEoBy"
+	exampleOpenAIClassic     = "sk-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
+	exampleOpenAIProj        = "sk-proj-4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXM5kAtRzFi"
+	exampleAnthropic         = "sk-ant-api03-iL4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V9pXMaRtZk"
+	exampleSlackBot          = "xoxb-1234567890-2Yz9KqMjL4xR7bN0pVcSwTfHaG3eDlEoBu"
+	exampleGoogleAPI         = "AIzaSy0d4tUbKLpoZAQ_9XmHJnE5w-VqfBcN1Hy"
+	exampleJWT               = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+
+	// New provider examples (M6 expansion).
+	exampleGitLabPAT       = "glpat-rJ7nL3pT9mK2vH8qBxYz"
+	exampleNPMToken        = "npm_4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn1V"
+	examplePyPIToken       = "pypi-AgEIcHlwaS5vcmcCJDg1MTAzN2I1LWE0OWMtNGYxNS04N2QtNzNkZGYwMzQyNzI4AAILRm"
+	exampleHuggingFace     = "hf_4mP7yKxQvN3wRfZ8dHcEjBaTuLgI2sObYn"
+	exampleSendGrid        = "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"
+	exampleMailgun         = "key-3eb0fb6e1a89d6c4b8f23e7a9d56c01b"
+	exampleTwilioSID       = "AC0123456789abcdef0123456789abcdef"
+	exampleDiscordWebhook  = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
+	exampleSlackWebhook    = "https://hooks.slack.com/services/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"
+	exampleAzureStorageKey = "AccountKey=8aBcdefghIJKLmnopQRSTUVWxyzABCDEFGHIJKLMNOPQRSTUVwxyz12345678abcdefghIJKLmnopQRSTUVW+/=="
+	exampleMongoURI        = "mongodb+srv://app_user:hZ4mP7yKxQvN@cluster0.example.mongodb.net/app"
 )
 
 func scanOf(t *testing.T, typ, input string) []api.Finding {
@@ -174,6 +187,87 @@ func TestScan_OffsetsArePrecise(t *testing.T) {
 		assert.NotEmpty(t, input[f.Start:f.End])
 		assert.Equal(t, "secrets", f.Scanner)
 	}
+}
+
+func TestScan_GitLabPAT(t *testing.T) {
+	input := "GITLAB_TOKEN=" + exampleGitLabPAT
+	fs := scanOf(t, "secret.gitlab_pat", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleGitLabPAT, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_NPMToken(t *testing.T) {
+	input := "NPM_TOKEN=" + exampleNPMToken
+	fs := scanOf(t, "secret.npm_token", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleNPMToken, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_PyPIToken(t *testing.T) {
+	input := "PYPI_API_TOKEN=" + examplePyPIToken
+	fs := scanOf(t, "secret.pypi_token", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, examplePyPIToken, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_HuggingFaceToken(t *testing.T) {
+	input := "HF_TOKEN=" + exampleHuggingFace
+	fs := scanOf(t, "secret.huggingface_token", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleHuggingFace, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_SendGrid(t *testing.T) {
+	input := "SENDGRID_API_KEY=" + exampleSendGrid
+	fs := scanOf(t, "secret.sendgrid_api_key", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleSendGrid, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_Mailgun(t *testing.T) {
+	input := "MAILGUN_API_KEY=" + exampleMailgun
+	fs := scanOf(t, "secret.mailgun_api_key", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleMailgun, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_TwilioAccountSID(t *testing.T) {
+	input := "TWILIO_ACCOUNT_SID=" + exampleTwilioSID
+	fs := scanOf(t, "secret.twilio_account_sid", input)
+	require.Len(t, fs, 1)
+}
+
+func TestScan_DiscordWebhook(t *testing.T) {
+	input := "DISCORD_WEBHOOK=" + exampleDiscordWebhook
+	fs := scanOf(t, "secret.discord_webhook", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleDiscordWebhook, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_SlackWebhook(t *testing.T) {
+	input := "SLACK_WEBHOOK=" + exampleSlackWebhook
+	fs := scanOf(t, "secret.slack_webhook", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleSlackWebhook, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_AzureStorageKey(t *testing.T) {
+	input := "AZURE=DefaultEndpointsProtocol=https;AccountName=mystore;" + exampleAzureStorageKey + ";EndpointSuffix=core.windows.net"
+	fs := scanOf(t, "secret.azure_storage_key", input)
+	require.Len(t, fs, 1)
+	assert.Equal(t, exampleAzureStorageKey, input[fs[0].Start:fs[0].End])
+}
+
+func TestScan_MongoDBURIWithCreds(t *testing.T) {
+	fs := scanOf(t, "secret.mongodb_uri", "MONGODB_URI="+exampleMongoURI)
+	require.Len(t, fs, 1)
+}
+
+func TestScan_MongoDBURIWithoutCredsNotFlagged(t *testing.T) {
+	// Plain mongodb://host (no embedded creds) is not a leak; the rule
+	// must require the user:password@ portion.
+	fs := scanOf(t, "secret.mongodb_uri", "MONGODB_URI=mongodb://db.example.io:27017/app")
+	assert.Empty(t, fs)
 }
 
 func TestScan_PlainTextHasNoFalsePositives(t *testing.T) {

@@ -157,6 +157,111 @@ var detectors = []detector{
 		severity:   api.SeverityCritical,
 		confidence: 0.99,
 	},
+
+	// --- Source-control & package registries -----------------------------
+	{
+		typ:        "secret.gitlab_pat",
+		pattern:    regexp.MustCompile(`\bglpat-[A-Za-z0-9_-]{20}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.98,
+		minEntropy: 3.5,
+	},
+	{
+		typ:        "secret.npm_token",
+		pattern:    regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.98,
+		minEntropy: 3.5,
+	},
+	{
+		// PyPI macaroon tokens are always prefixed by the literal
+		// "pypi-AgEIcHlwaS5vcmcC" (base64 of "pypi.org" macaroon header)
+		// before the per-account macaroon body.
+		typ:        "secret.pypi_token",
+		pattern:    regexp.MustCompile(`\bpypi-AgEIcHlwaS5vcmcC[A-Za-z0-9_-]{50,}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.99,
+		minEntropy: 3.5,
+	},
+	{
+		typ:        "secret.huggingface_token",
+		pattern:    regexp.MustCompile(`\bhf_[A-Za-z0-9]{34}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.95,
+		minEntropy: 3.5,
+	},
+
+	// --- Email / messaging providers ------------------------------------
+	{
+		// SendGrid API key: SG.<22>.<43>.
+		typ:        "secret.sendgrid_api_key",
+		pattern:    regexp.MustCompile(`\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.98,
+		minEntropy: 3.5,
+	},
+	{
+		// Older Mailgun API keys: key-<32 hex>. Newer Mailgun keys are
+		// generic base64 with no fixed prefix; we don't ship a rule for
+		// those — they need context + entropy and live in the rescue
+		// path you'd add separately.
+		typ:        "secret.mailgun_api_key",
+		pattern:    regexp.MustCompile(`\bkey-[a-f0-9]{32}\b`),
+		severity:   api.SeverityCritical,
+		confidence: 0.95,
+		// Hex alphabet only — max entropy is log2(16)=4, so a more
+		// modest floor than the base62 detectors.
+		minEntropy: 3.0,
+	},
+	{
+		// Twilio Account SID — AC + 32 lowercase hex chars. Confidence
+		// is lower than other detectors because the prefix is short
+		// enough to collide with prose; entropy filters the worst FPs.
+		typ:        "secret.twilio_account_sid",
+		pattern:    regexp.MustCompile(`\bAC[0-9a-f]{32}\b`),
+		severity:   api.SeverityHigh,
+		confidence: 0.85,
+		minEntropy: 3.0,
+	},
+	{
+		// Discord webhook URLs. The path-prefix is the unique signal;
+		// no entropy check (the URL prefix dominates the entropy of any
+		// match, dragging it well below any useful floor).
+		typ:        "secret.discord_webhook",
+		pattern:    regexp.MustCompile(`https://(?:discord(?:app)?|canary\.discord)\.com/api/webhooks/[0-9]+/[A-Za-z0-9_-]+`),
+		severity:   api.SeverityHigh,
+		confidence: 0.99,
+	},
+	{
+		// Slack incoming-webhook URLs. Note: distinct from
+		// secret.slack_token (xox*) — webhooks have no xox prefix and
+		// embed the token in the URL.
+		typ:        "secret.slack_webhook",
+		pattern:    regexp.MustCompile(`https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]{24,}`),
+		severity:   api.SeverityHigh,
+		confidence: 0.99,
+	},
+
+	// --- Cloud / database -----------------------------------------------
+	{
+		// Azure Storage account key in a connection-string fragment. The
+		// `AccountKey=` label is the anchor; without it the 88-char
+		// base64 value alone has too many false positives.
+		typ:        "secret.azure_storage_key",
+		pattern:    regexp.MustCompile(`(?i)AccountKey=[A-Za-z0-9+/]{86,88}={0,2}`),
+		severity:   api.SeverityCritical,
+		confidence: 0.97,
+		minEntropy: 3.5,
+	},
+	{
+		// MongoDB connection URI with embedded credentials. We match
+		// only when there's a `user:password@` segment — bare
+		// `mongodb://host/db` (no creds) is not a secret leak.
+		typ:        "secret.mongodb_uri",
+		pattern:    regexp.MustCompile(`\bmongodb(?:\+srv)?://[^:\s/]+:[^@\s]+@[^\s/]+`),
+		severity:   api.SeverityCritical,
+		confidence: 0.95,
+	},
 }
 
 type Scanner struct{}
