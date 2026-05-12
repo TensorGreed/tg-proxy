@@ -1,6 +1,0 @@
-{
-  "comment": "MySQL accepts inline /**/ comments as whitespace. Classic WAF-evasion technique. Fix would require a normalize-pass that strips inline comments before matching, or alternation patterns that allow /**/ anywhere whitespace can appear.",
-  "ideal_findings": [
-    {"type": "sqli.union_select", "match": "UN/**/ION SE/**/LECT"}
-  ]
-}

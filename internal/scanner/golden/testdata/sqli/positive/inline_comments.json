@@ -1,0 +1,6 @@
+{
+  "comment": "GRADUATED from adversarial: MySQL accepts inline /**/ comments as whitespace, a classic WAF-evasion technique. Pipeline.Scan's comment-strip pre-pass removes `/*...*/` spans before the SQLi detectors re-run; the mapped finding range still covers the original comment-bearing bytes so a redactor rewrites the whole evaded span.",
+  "findings": [
+    {"type": "sqli.union_select", "match": "UN/**/ION SE/**/LECT"}
+  ]
+}

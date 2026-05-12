@@ -58,6 +58,8 @@ type Result struct {
 //   - Base64-decoded view (when a 16+ char base64-alphabet run is present
 //     and decodes to mostly-printable bytes): catches secrets and code
 //     wrapped inside `atob(...)`, env-vars set to base64 blobs, etc.
+//   - SQL-comment-stripped view (when `/*` is present): foils MySQL's
+//     `/*...*/`-as-whitespace evasion like `UN/**/ION SE/**/LECT`.
 //
 // Each pass's findings are mapped back to byte ranges in the original
 // buffer and deduped against earlier findings by `(type, range)`.
@@ -88,6 +90,12 @@ func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]ap
 
 	if containsBase64Candidate(data) {
 		extra, err := p.transformedPass(ctx, data, hints, base64Decode)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
+	}
+
+	if containsSlashStarComment(data) {
+		extra, err := p.transformedPass(ctx, data, hints, sqliCommentStrip)
 		scanErr = errors.Join(scanErr, err)
 		findings = mergeNew(findings, extra)
 	}
