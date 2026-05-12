@@ -1,0 +1,6 @@
+{
+  "comment": "IBAN is a recognizer Presidio ships out of the box and built-in tg-proxy PII doesn't target. The classic example of why Presidio earns its memory footprint.",
+  "findings": [
+    {"type": "pii.presidio.iban_code", "match": "GB82WEST12345698765432"}
+  ]
+}

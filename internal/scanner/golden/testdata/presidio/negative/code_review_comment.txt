@@ -1,0 +1,1 @@
+Refactor this function to use a context manager. The error-handling block should live in the parent class so it does not have to be duplicated across every concrete subclass.

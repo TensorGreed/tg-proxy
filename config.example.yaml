@@ -77,6 +77,16 @@ scanners:
   #   external:
   #     command: ["python", "/etc/tg-proxy/plugins/token_scanner.py"]
   #     handshake_timeout_seconds: 10
+  #
+  # presidio: industry-standard PII NER (PERSON, LOCATION, IBAN, etc.) via
+  # Microsoft Presidio. Adds ~50 entity types over the built-in pii rule
+  # at the cost of ~500MB resident memory and 10–50ms per body. Install:
+  #   pip install tgproxy-presidio && python -m spacy download en_core_web_lg
+  # - name: presidio
+  #   enabled: true
+  #   external:
+  #     command: ["python", "-m", "tgproxy_presidio"]
+  #     handshake_timeout_seconds: 30   # spaCy model load takes time
 
 # Redactor that consumes findings and rewrites the body in-flight. Exactly one
 # redactor runs at a time; swap it (or replace with your own implementation)

@@ -1,0 +1,1 @@
+The proxy buffers each request body up to a configured limit, fans it out across the enabled scanners concurrently, merges their findings, and passes the result through the configured redactor before forwarding upstream.

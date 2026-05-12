@@ -1,0 +1,42 @@
+# tgproxy-presidio: Microsoft Presidio scanner plugin for tg-proxy.
+#
+# Shipped as a separate PyPI package so tg-proxy core stays MIT-clean and
+# users opt in to the ~500MB of Python ML dependencies. tg-proxy talks to
+# this plugin via the gRPC plugin protocol in pkg/plugin/proto.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tgproxy-presidio"
+version = "0.1.0"
+description = "Microsoft Presidio (PII NER) scanner plugin for tg-proxy."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "TensorGreed" }]
+keywords = ["tg-proxy", "pii", "presidio", "ner", "scanner", "plugin"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+  "Topic :: Security",
+]
+dependencies = [
+  "tgproxy-plugin>=0.0.1",
+  "presidio-analyzer>=2.2.0",
+  "spacy>=3.4",
+]
+
+[project.urls]
+Homepage   = "https://github.com/TensorGreed/tg-proxy"
+Repository = "https://github.com/TensorGreed/tg-proxy"
+
+[project.scripts]
+tgproxy-presidio = "tgproxy_presidio.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages    = ["tgproxy_presidio"]

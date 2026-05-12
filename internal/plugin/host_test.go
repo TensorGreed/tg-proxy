@@ -145,3 +145,81 @@ func TestHost_LoadAndScan_PythonSubprocess(t *testing.T) {
 	assert.Equal(t, "example.token", findings[0].Type)
 	assert.Equal(t, "TOKEN", string([]byte("the TOKEN is here")[findings[0].Start:findings[0].End]))
 }
+
+// TestHost_LoadAndScan_Presidio spawns the tgproxy-presidio plugin and
+// verifies that an end-to-end PII NER scan reaches tg-proxy via the
+// gRPC plugin protocol.
+//
+// The test is gated on Presidio + the spaCy English model being
+// importable in the local Python environment. When they aren't (the
+// common case in CI without explicit install), the test skips rather
+// than failing — Presidio is an opt-in plugin, not part of tg-proxy
+// core. To run locally:
+//
+//	pip install -e packaging/python-sdk-plugin
+//	pip install -e packaging/python-presidio-plugin
+//	python -m spacy download en_core_web_lg
+//	go test -timeout=120s -run TestHost_LoadAndScan_Presidio ./internal/plugin/...
+func TestHost_LoadAndScan_Presidio(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Presidio plugin test in -short mode")
+	}
+	pyBin, err := exec.LookPath("python")
+	if err != nil {
+		t.Skip("python not found on PATH")
+	}
+	probe := exec.Command(pyBin, "-c",
+		"import presidio_analyzer; import tgproxy_plugin; "+
+			"import spacy; spacy.load('en_core_web_sm') if False else None")
+	if out, err := probe.CombinedOutput(); err != nil {
+		t.Skipf("Presidio prerequisites missing — install them to enable this test: %s", out)
+	}
+
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	sdkSrc := filepath.Join(repoRoot, "packaging", "python-sdk-plugin", "src")
+	presidioSrc := filepath.Join(repoRoot, "packaging", "python-presidio-plugin", "src")
+
+	host := NewHost(nil)
+	t.Cleanup(host.Shutdown)
+
+	// Presidio startup includes loading the spaCy model — generous.
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	scanner, err := host.LoadScanner(ctx, PluginConfig{
+		Name:    "presidio",
+		Command: []string{pyBin, "-m", "tgproxy_presidio"},
+		Env: append(os.Environ(),
+			// Use the smallest model if it's available, to keep the
+			// test fast and the memory footprint sane on dev machines.
+			"TGPROXY_PRESIDIO_MODEL=en_core_web_sm",
+			"PYTHONPATH="+sdkSrc+string(os.PathListSeparator)+presidioSrc,
+			"PYTHONUNBUFFERED=1",
+		),
+		Kind:             KindScanner,
+		HandshakeTimeout: 90 * time.Second,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "presidio", scanner.Name())
+
+	body := []byte("Dr. Alice Johnson lives at 1 Main Street. Email alice@example.com")
+	findings, err := scanner.Scan(ctx, body, api.Hints{})
+	require.NoError(t, err)
+	require.NotEmpty(t, findings, "Presidio should have produced at least one finding")
+
+	// We don't pin a specific set of types — recognizer coverage drifts
+	// across Presidio versions — but the prose contains a person name
+	// and an email so we expect at least those.
+	gotTypes := make(map[string]bool)
+	for _, f := range findings {
+		gotTypes[f.Type] = true
+		// Every mapped offset must round-trip back to a non-empty span.
+		assert.Greater(t, f.End, f.Start)
+		assert.LessOrEqual(t, f.End, len(body))
+	}
+	assert.True(t,
+		gotTypes["pii.presidio.person"] || gotTypes["pii.presidio.email_address"],
+		"expected at least one of PERSON or EMAIL_ADDRESS findings; got: %v", gotTypes,
+	)
+}

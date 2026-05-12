@@ -1,0 +1,7 @@
+{
+  "comment": "Two entity types in one body — person + location — both invisible to regex PII but bread-and-butter for NER. Presidio may also tag 'yesterday' as DATE_TIME.",
+  "findings": [
+    {"type": "pii.presidio.person", "match": "Sarah Chen"},
+    {"type": "pii.presidio.location", "match": "Portland"}
+  ]
+}

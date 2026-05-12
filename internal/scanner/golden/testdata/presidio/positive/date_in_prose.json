@@ -1,0 +1,6 @@
+{
+  "comment": "Natural-language date that no built-in scanner targets. Presidio may split into 'March 15' and '2023' or report the whole span — the overlap check tolerates either.",
+  "findings": [
+    {"type": "pii.presidio.date_time", "match": "March 15, 2023"}
+  ]
+}

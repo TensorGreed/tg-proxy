@@ -147,6 +147,28 @@ scanners:
 
 A Python SDK that hides all the gRPC plumbing is published as `tgproxy-plugin` on PyPI — see [`packaging/python-sdk-plugin/`](packaging/python-sdk-plugin/) for the source and a worked example. The Go SDK lives in [`pkg/plugin/`](pkg/plugin/).
 
+### Bundled plugin: Microsoft Presidio for PII NER
+
+For PII coverage beyond what regex can reach — `PERSON`, `LOCATION`, `IBAN_CODE`, `US_PASSPORT`, `MEDICAL_LICENSE`, and ~45 more entity types — install the [`tgproxy-presidio`](packaging/python-presidio-plugin/) plugin and wire it in alongside the built-in scanners:
+
+```bash
+pip install tgproxy-presidio
+python -m spacy download en_core_web_lg
+```
+
+```yaml
+scanners:
+  - { name: pii,      enabled: true }       # built-in regex PII keeps firing
+  - { name: secrets,  enabled: true }
+  - name: presidio
+    enabled: true
+    external:
+      command: ["python", "-m", "tgproxy_presidio"]
+      handshake_timeout_seconds: 30
+```
+
+Presidio's findings are namespaced `pii.presidio.<entity_type>` so they don't clash with built-in `pii.*` findings. Trade-off: ~500 MB resident memory and 10–50 ms per body in exchange for context-aware NER and ~50 additional entity types. MIT-licensed; full license + dependency notes in the [plugin's README](packaging/python-presidio-plugin/README.md).
+
 ## How it works
 
 ```

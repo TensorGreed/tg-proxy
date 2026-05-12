@@ -1,0 +1,95 @@
+# tgproxy-presidio
+
+Microsoft Presidio scanner plugin for [tg-proxy](https://github.com/TensorGreed/tg-proxy).
+Run [Presidio's PII NER analyzer](https://microsoft.github.io/presidio/) alongside tg-proxy's built-in regex scanners and get ~50 additional entity types (PERSON, LOCATION, MEDICAL_LICENSE, IBAN_CODE, US_PASSPORT, AU_TFN, UK_NHS, …) without changing tg-proxy itself.
+
+## Install
+
+```bash
+pip install tgproxy-presidio
+python -m spacy download en_core_web_lg
+```
+
+The spaCy model download is required by Presidio and adds ~700 MB to disk. For a lighter footprint:
+
+```bash
+python -m spacy download en_core_web_md     # ~100 MB, slightly lower NER accuracy
+# then:
+export TGPROXY_PRESIDIO_MODEL=en_core_web_md
+```
+
+## Wire into tg-proxy config
+
+```yaml
+scanners:
+  - name: pii          # built-in regex PII — keeps firing
+    enabled: true
+  - name: secrets
+    enabled: true
+  - name: presidio     # external Presidio plugin
+    enabled: true
+    external:
+      command: ["python", "-m", "tgproxy_presidio"]
+      handshake_timeout_seconds: 30   # accommodates spaCy model load
+```
+
+Run tg-proxy as usual. The first request after startup may take a few extra seconds while the plugin loads; subsequent scans run at ~10–50 ms per body.
+
+## Finding type namespace
+
+Every finding emitted by this plugin is prefixed `pii.presidio.<entity_type>`, lowercased — for example `pii.presidio.email_address`, `pii.presidio.us_ssn`, `pii.presidio.person`. This deliberately doesn't clash with the built-in `pii.email`, `pii.ssn_us`, etc. Both fire when both detect the same span; the redactor coalesces overlapping ranges, so practical output is unchanged.
+
+To suppress entity types you don't want, filter by finding type in your custom redactor, or disable individual recognizers by extending the plugin (`AnalyzerEngine` exposes `registry.remove_recognizer(name)`).
+
+## What you get over the built-in PII scanner
+
+| Built-in `pii.*`            | Adds via `pii.presidio.*` |
+|---|---|
+| email, phone, SSN, IPv4, credit-card | PERSON names, LOCATIONs, addresses, DOBs (DATE_TIME), URLs, NRP, MEDICAL_LICENSE |
+| US-only                              | IBAN_CODE, UK_NHS, AU_TFN, AU_MEDICARE, AU_ACN, AU_ABN, US_ITIN, US_PASSPORT, US_DRIVER_LICENSE, CRYPTO wallet addresses |
+| ASCII-only regex                     | Context-aware NER (`John lives at 123 Main St`) |
+
+Trade-off: roughly 500 MB resident memory and 10–50 ms per body vs. tg-proxy's regex-only baseline of < 1 ms.
+
+## Severity mapping
+
+The plugin maps Presidio entity types to tg-proxy severity levels in `tgproxy_presidio.scanner.SEVERITY_MAP`. Defaults lean conservative:
+
+- **CRITICAL**: financial (CREDIT_CARD, IBAN_CODE, CRYPTO, US_BANK_NUMBER) and government IDs (US_SSN, US_PASSPORT, US_DRIVER_LICENSE, UK_NHS, AU_TFN, AU_MEDICARE).
+- **HIGH**: MEDICAL_LICENSE.
+- **MEDIUM**: EMAIL_ADDRESS, PHONE_NUMBER, IP_ADDRESS.
+- **LOW**: PERSON, LOCATION, NRP, DATE_TIME, URL.
+
+If your policy needs different severities, fork the map — it's pure data.
+
+## Licensing
+
+This plugin is MIT-licensed. It depends on:
+
+| Dep | License |
+|---|---|
+| `presidio-analyzer` | MIT (Microsoft) |
+| `spacy` + `en_core_web_*` models | MIT |
+| `phonenumbers` (transitive) | Apache-2.0 |
+| `tgproxy-plugin` | MIT |
+
+All permissive. No copyleft. The `LICENSES/` directory in this package mirrors upstream NOTICES.
+
+## Limitations
+
+- **Latency**: NER is slower than regex. For high-throughput proxies, gate Presidio behind content-type or URL hints in tg-proxy config so it only runs on bodies likely to contain prose PII.
+- **Streaming**: tg-proxy's streaming pipeline currently bypasses external plugins (per body delivery semantics). Buffered requests get Presidio coverage; long SSE streams don't.
+- **English only by default**: Presidio supports many languages but the default install ships English. Add languages via the spaCy model download + the `TGPROXY_PRESIDIO_MODEL` env var.
+
+## Standalone testing
+
+Without tg-proxy in the loop, you can call the scan function directly:
+
+```python
+from tgproxy_plugin import Hints
+from tgproxy_presidio import build_scanner
+
+scan = build_scanner()                            # loads spaCy
+for f in scan(b"Dr. Alice Johnson lives at 1 Main St", Hints()):
+    print(f.type, f.start, f.end, f.confidence)
+```

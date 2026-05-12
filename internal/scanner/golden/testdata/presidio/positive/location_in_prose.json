@@ -1,0 +1,6 @@
+{
+  "comment": "Geopolitical entities mentioned in prose. We only assert Berlin reliably matches across spaCy model sizes; Munich/Vienna may or may not fire on en_core_web_sm and are extras.",
+  "findings": [
+    {"type": "pii.presidio.location", "match": "Berlin"}
+  ]
+}

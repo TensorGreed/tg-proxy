@@ -62,13 +62,19 @@ type sidecar struct {
 }
 
 // scannersUnderTest maps the folder name to the scanner instance.
+// Plugin-backed scanners loaded in TestMain are folded in here; when none
+// are loaded (the CI default) the map contains only the in-process scanners.
 func scannersUnderTest() map[string]api.Scanner {
-	return map[string]api.Scanner{
+	out := map[string]api.Scanner{
 		"pii":     pii.New(),
 		"secrets": secrets.New(),
 		"sqli":    sqli.New(),
 		"code":    code.New(),
 	}
+	for name, s := range pluginScanners {
+		out[name] = s
+	}
+	return out
 }
 
 // metrics accumulates TP/FP/FN counts per (scanner, finding-type) for the

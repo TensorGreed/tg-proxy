@@ -1,0 +1,6 @@
+{
+  "comment": "Person name in narrative prose — the kind of context regex-based PII can't cover and NER catches reliably. Presidio may also tag 'Tuesday' as DATE_TIME; extras are informational.",
+  "findings": [
+    {"type": "pii.presidio.person", "match": "Alice Johnson"}
+  ]
+}
