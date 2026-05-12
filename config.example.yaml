@@ -53,8 +53,23 @@ tls:
 # packaging/python-sdk-plugin/ for the Python SDK and pkg/plugin/proto/ for
 # the wire definition.
 scanners:
+  # pii: emails, US SSNs, US phones, IPv4, Luhn-validated credit cards.
   - name: pii
     enabled: true
+  # secrets: AWS/GCP/GitHub/Stripe/OpenAI/Anthropic/Slack tokens, JWTs,
+  # PEM private keys. Critical severity by default.
+  - name: secrets
+    enabled: true
+  # sqli: heuristic SQL injection patterns (UNION SELECT, tautologies,
+  # statement chaining, time-based, xp_cmdshell, schema recon). Likely to
+  # false-positive on prompts that legitimately quote SQL — opt-in.
+  - name: sqli
+    enabled: false
+  # code: source-code signatures (Python/JS/Go/C/Java/shebang/SQL DDL).
+  # Useful for catching proprietary code leaking into LLM prompts; will
+  # also flag legitimate code in dev tools. Opt-in.
+  - name: code
+    enabled: false
   # Example external scanner (Python). Uncomment after pip-installing the
   # SDK with `pip install tgproxy-plugin`.
   # - name: token-marker

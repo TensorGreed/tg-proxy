@@ -50,14 +50,21 @@ func TestBuildLogger_BadLevel(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestBuildScanners_RegistersPII(t *testing.T) {
+func TestBuildScanners_RegistersDefaults(t *testing.T) {
 	cfg := config.Default()
 	host := plug.NewHost(nil)
 	t.Cleanup(host.Shutdown)
 	scanners, err := buildScanners(context.Background(), cfg, host)
 	require.NoError(t, err)
-	require.Len(t, scanners, 1)
-	assert.Equal(t, "pii", scanners[0].Name())
+	names := make([]string, len(scanners))
+	for i, s := range scanners {
+		names[i] = s.Name()
+	}
+	// Defaults: pii and secrets are enabled; sqli and code are opt-in.
+	assert.Contains(t, names, "pii")
+	assert.Contains(t, names, "secrets")
+	assert.NotContains(t, names, "sqli")
+	assert.NotContains(t, names, "code")
 }
 
 func TestBuildScanners_UnknownScannerErrors(t *testing.T) {
@@ -71,7 +78,10 @@ func TestBuildScanners_UnknownScannerErrors(t *testing.T) {
 
 func TestBuildScanners_NoEnabledScannersErrors(t *testing.T) {
 	cfg := config.Default()
-	cfg.Scanners = []config.ScannerConfig{{Name: "pii", Enabled: false}}
+	cfg.Scanners = []config.ScannerConfig{
+		{Name: "pii", Enabled: false},
+		{Name: "secrets", Enabled: false},
+	}
 	host := plug.NewHost(nil)
 	t.Cleanup(host.Shutdown)
 	_, err := buildScanners(context.Background(), cfg, host)

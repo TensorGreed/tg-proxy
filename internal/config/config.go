@@ -51,7 +51,12 @@ func Default() *Config {
 		Streaming: StreamingConfig{
 			WindowBytes: 4096,
 		},
-		Scanners: []ScannerConfig{{Name: "pii", Enabled: true}},
+		Scanners: []ScannerConfig{
+			{Name: "pii", Enabled: true},
+			{Name: "secrets", Enabled: true},
+			{Name: "sqli", Enabled: false},
+			{Name: "code", Enabled: false},
+		},
 		Redactor: RedactorConfig{
 			Name:   "mask",
 			Config: map[string]any{"placeholder": "[REDACTED]"},

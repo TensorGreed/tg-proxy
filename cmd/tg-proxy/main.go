@@ -22,7 +22,10 @@ import (
 	"github.com/TensorGreed/tg-proxy/internal/redactor"
 	"github.com/TensorGreed/tg-proxy/internal/redactor/mask"
 	"github.com/TensorGreed/tg-proxy/internal/scanner"
+	"github.com/TensorGreed/tg-proxy/internal/scanner/code"
 	"github.com/TensorGreed/tg-proxy/internal/scanner/pii"
+	"github.com/TensorGreed/tg-proxy/internal/scanner/secrets"
+	"github.com/TensorGreed/tg-proxy/internal/scanner/sqli"
 	"github.com/TensorGreed/tg-proxy/pkg/api"
 )
 
@@ -180,8 +183,15 @@ func ctxBackground() context.Context { return context.Background() }
 
 func buildScanners(ctx context.Context, cfg *config.Config, host *plug.Host) ([]api.Scanner, error) {
 	reg := scanner.NewRegistry()
-	if err := reg.Register(pii.New()); err != nil {
-		return nil, err
+	for _, s := range []api.Scanner{
+		pii.New(),
+		secrets.New(),
+		sqli.New(),
+		code.New(),
+	} {
+		if err := reg.Register(s); err != nil {
+			return nil, err
+		}
 	}
 
 	out := make([]api.Scanner, 0, len(cfg.Scanners))

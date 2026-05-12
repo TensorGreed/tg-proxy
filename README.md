@@ -26,7 +26,7 @@ It is **not** a WAF, **not** a substitute for at-rest encryption, **not** an exf
 - **Two interception modes**
   - Explicit `HTTP_PROXY` / `HTTPS_PROXY` — zero kernel privileges, every common HTTP client honors it.
   - MITM on `CONNECT` — terminates client TLS with an on-the-fly leaf certificate signed by your own CA so HTTPS bodies are scanned, then re-encrypts to the upstream.
-- **Built-in PII scanner**: emails, US SSNs, US phones, IPv4 addresses, and Luhn-validated credit-card numbers.
+- **Built-in scanners**: `pii` (emails, US SSNs, US phones, IPv4, Luhn-validated credit cards), `secrets` (AWS/GitHub/Stripe/OpenAI/Anthropic/Slack/Google tokens, JWTs, PEM private keys), `sqli` (UNION SELECT, tautologies, statement chaining, time-based blind, `xp_cmdshell`, schema recon), and `code` (Python/JS/Go/C/Java/shell/SQL DDL signatures — useful for spotting proprietary code leaking into LLM prompts).
 - **Pluggable scanners and redactors** with byte-precise `Start`/`End` offsets — write your own redactor that gets the exact ranges to act on.
 - **CA management built in**: `tg-proxy ca generate | install | uninstall | path` handles the trust store on Linux, macOS, and Windows.
 - **Single static binary**, ~10 MB, CGO-free, ships on linux/macOS/Windows × amd64/arm64.
@@ -169,7 +169,7 @@ Bodies are buffered up to `limits.max_body_size`, fanned out across all enabled 
 - [x] **M3** — pip wheels + npm packages, all distribution channels wired into the release pipeline.
 - [x] **M4** — Streaming bodies (SSE, chunked, HTTP/2) with sliding-window scanning so long-running LLM responses scan in flight.
 - [x] **M5** — gRPC-based external plugin host (HashiCorp `go-plugin`) with a Python SDK so scanners and redactors can be written in any language. (Node SDK is a follow-up.)
-- [ ] **M6** — More built-in scanners (secrets in the gitleaks family, SQL injection heuristics, source-code detection), Prometheus metrics, hot config reload.
+- [x] **M6 (scanners)** — Built-in `secrets`, `sqli`, and `code` scanners. Prometheus metrics and hot config reload are still pending.
 - [ ] **M7** — Linux transparent mode via `SO_ORIGINAL_DST` + SNI sniffing for OS-level redirect without `HTTPS_PROXY`.
 
 ## Project status
