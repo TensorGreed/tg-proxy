@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TensorGreed/tg-proxy/internal/config"
+	plug "github.com/TensorGreed/tg-proxy/internal/plugin"
 )
 
 func TestLoadConfig_Empty(t *testing.T) {
@@ -50,7 +52,9 @@ func TestBuildLogger_BadLevel(t *testing.T) {
 
 func TestBuildScanners_RegistersPII(t *testing.T) {
 	cfg := config.Default()
-	scanners, err := buildScanners(cfg)
+	host := plug.NewHost(nil)
+	t.Cleanup(host.Shutdown)
+	scanners, err := buildScanners(context.Background(), cfg, host)
 	require.NoError(t, err)
 	require.Len(t, scanners, 1)
 	assert.Equal(t, "pii", scanners[0].Name())
@@ -59,20 +63,26 @@ func TestBuildScanners_RegistersPII(t *testing.T) {
 func TestBuildScanners_UnknownScannerErrors(t *testing.T) {
 	cfg := config.Default()
 	cfg.Scanners = []config.ScannerConfig{{Name: "wibble", Enabled: true}}
-	_, err := buildScanners(cfg)
+	host := plug.NewHost(nil)
+	t.Cleanup(host.Shutdown)
+	_, err := buildScanners(context.Background(), cfg, host)
 	assert.Error(t, err)
 }
 
 func TestBuildScanners_NoEnabledScannersErrors(t *testing.T) {
 	cfg := config.Default()
 	cfg.Scanners = []config.ScannerConfig{{Name: "pii", Enabled: false}}
-	_, err := buildScanners(cfg)
+	host := plug.NewHost(nil)
+	t.Cleanup(host.Shutdown)
+	_, err := buildScanners(context.Background(), cfg, host)
 	assert.Error(t, err)
 }
 
 func TestBuildRedactor_DefaultMask(t *testing.T) {
 	cfg := config.Default()
-	r, err := buildRedactor(cfg)
+	host := plug.NewHost(nil)
+	t.Cleanup(host.Shutdown)
+	r, err := buildRedactor(context.Background(), cfg, host)
 	require.NoError(t, err)
 	assert.Equal(t, "mask", r.Name())
 }
@@ -80,7 +90,9 @@ func TestBuildRedactor_DefaultMask(t *testing.T) {
 func TestBuildRedactor_UnknownErrors(t *testing.T) {
 	cfg := config.Default()
 	cfg.Redactor.Name = "wibble"
-	_, err := buildRedactor(cfg)
+	host := plug.NewHost(nil)
+	t.Cleanup(host.Shutdown)
+	_, err := buildRedactor(context.Background(), cfg, host)
 	assert.Error(t, err)
 }
 

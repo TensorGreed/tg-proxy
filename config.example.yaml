@@ -47,14 +47,29 @@ tls:
 
 # Scanners to run on each request/response body. Each scanner emits findings
 # with byte-precise Start/End offsets that the redactor consumes.
+#
+# Scanners can be built-in (just set `name` to one tg-proxy ships) or external
+# subprocess plugins speaking gRPC via the hashicorp/go-plugin protocol — see
+# packaging/python-sdk-plugin/ for the Python SDK and pkg/plugin/proto/ for
+# the wire definition.
 scanners:
   - name: pii
     enabled: true
+  # Example external scanner (Python). Uncomment after pip-installing the
+  # SDK with `pip install tgproxy-plugin`.
+  # - name: token-marker
+  #   enabled: true
+  #   external:
+  #     command: ["python", "/etc/tg-proxy/plugins/token_scanner.py"]
+  #     handshake_timeout_seconds: 10
 
 # Redactor that consumes findings and rewrites the body in-flight. Exactly one
 # redactor runs at a time; swap it (or replace with your own implementation)
-# by changing `name` and `config`.
+# by changing `name` and `config`, or by pointing at an external plugin via
+# the `external` block.
 redactor:
   name: mask
   config:
     placeholder: "[REDACTED]"
+  # external:
+  #   command: ["/usr/local/bin/my-redactor"]

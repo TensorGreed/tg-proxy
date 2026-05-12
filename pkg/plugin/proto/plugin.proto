@@ -1,0 +1,93 @@
+// tg-proxy plugin protocol, v1.
+//
+// External scanners and redactors run as subprocesses spawned by tg-proxy
+// via hashicorp/go-plugin and communicate over gRPC. This file is the
+// single source of truth for what either side puts on the wire; the
+// generated *.pb.go files alongside this proto, and the Python stubs under
+// packaging/python-sdk-plugin/, are built from this one definition.
+//
+// Regenerate with:
+//   make proto
+
+syntax = "proto3";
+
+package tgproxy.plugin.v1;
+
+option go_package = "github.com/TensorGreed/tg-proxy/pkg/plugin/proto;proto";
+
+// Empty placeholder used by Info() RPCs that take no arguments.
+message Empty {}
+
+// Information about a plugin, returned by Info().
+message PluginInfo {
+  string name    = 1;
+  string version = 2;
+}
+
+// Direction tells a scanner whether the body is a client request or an
+// upstream response. Matches api.Direction on the Go side.
+enum Direction {
+  DIRECTION_REQUEST  = 0;
+  DIRECTION_RESPONSE = 1;
+}
+
+// Severity matches api.Severity on the Go side.
+enum Severity {
+  SEVERITY_INFO     = 0;
+  SEVERITY_LOW      = 1;
+  SEVERITY_MEDIUM   = 2;
+  SEVERITY_HIGH     = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+// Hints carry metadata about the HTTP exchange.
+message Hints {
+  string    content_type = 1;
+  string    url          = 2;
+  string    method       = 3;
+  Direction direction    = 4;
+}
+
+// Finding is a single match reported by a scanner. start/end are byte
+// offsets into the scanned slice; end is exclusive. Redactors rely on
+// these offsets being precise — data[start:end] must equal the matched
+// substring.
+message Finding {
+  string             type       = 1;
+  Severity           severity   = 2;
+  int32              start      = 3;
+  int32              end        = 4;
+  float              confidence = 5;
+  string             scanner    = 6;
+  map<string,string> metadata   = 7;
+}
+
+message ScanRequest {
+  bytes data  = 1;
+  Hints hints = 2;
+}
+
+message ScanResponse {
+  repeated Finding findings = 1;
+}
+
+message RedactRequest {
+  bytes            data     = 1;
+  repeated Finding findings = 2;
+}
+
+message RedactResponse {
+  bytes data = 1;
+}
+
+// Scanner is the service implemented by external scanner plugins.
+service Scanner {
+  rpc Info(Empty)       returns (PluginInfo);
+  rpc Scan(ScanRequest) returns (ScanResponse);
+}
+
+// Redactor is the service implemented by external redactor plugins.
+service Redactor {
+  rpc Info(Empty)         returns (PluginInfo);
+  rpc Redact(RedactRequest) returns (RedactResponse);
+}

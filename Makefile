@@ -8,7 +8,7 @@ COVER_OUT   := coverage.out
 COVER_HTML  := coverage.html
 COVER_MIN   ?= 80
 
-.PHONY: all build run test test-short cover cover-html cover-check lint tidy clean
+.PHONY: all build run test test-short cover cover-html cover-check lint tidy proto clean
 
 all: lint test build
 
@@ -40,6 +40,22 @@ lint:
 
 tidy:
 	$(GO) mod tidy
+
+# Regenerate gRPC stubs from pkg/plugin/proto/plugin.proto.
+# Requires: pip install grpcio-tools  +  protoc-gen-go and protoc-gen-go-grpc on PATH.
+PROTO_DIR := pkg/plugin/proto
+PY_PROTO_DIR := packaging/python-sdk-plugin/src/tgproxy_plugin/_proto
+proto:
+	python -m grpc_tools.protoc -I $(PROTO_DIR) \
+	    --go_out=. --go_opt=module=github.com/TensorGreed/tg-proxy \
+	    --go-grpc_out=. --go-grpc_opt=module=github.com/TensorGreed/tg-proxy \
+	    $(PROTO_DIR)/plugin.proto
+	python -m grpc_tools.protoc -I $(PROTO_DIR) \
+	    --python_out=$(PY_PROTO_DIR) \
+	    --grpc_python_out=$(PY_PROTO_DIR) \
+	    --pyi_out=$(PY_PROTO_DIR) \
+	    $(PROTO_DIR)/plugin.proto
+	@python -c "import re, pathlib; p=pathlib.Path('$(PY_PROTO_DIR)/plugin_pb2_grpc.py'); p.write_text(re.sub(r'^import plugin_pb2 as plugin__pb2$$', 'from . import plugin_pb2 as plugin__pb2', p.read_text(), flags=re.M))"
 
 clean:
 	rm -rf bin dist $(COVER_OUT) $(COVER_HTML)

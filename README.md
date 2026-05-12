@@ -133,6 +133,20 @@ type Finding struct {
 
 The `Start` and `End` offsets are the contract that lets you bring your own redactor — your code gets the exact byte ranges of every finding and decides what to do (mask, hash, tokenize, audit, drop the request, ...). See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-scanner) for a worked example.
 
+### Plugins in any language
+
+If you'd rather write your scanner or redactor in another language, point tg-proxy at a subprocess that speaks the gRPC protocol in [`pkg/plugin/proto/plugin.proto`](pkg/plugin/proto/plugin.proto):
+
+```yaml
+scanners:
+  - name: my-secrets
+    enabled: true
+    external:
+      command: ["python", "/etc/tg-proxy/plugins/secret_scanner.py"]
+```
+
+A Python SDK that hides all the gRPC plumbing is published as `tgproxy-plugin` on PyPI — see [`packaging/python-sdk-plugin/`](packaging/python-sdk-plugin/) for the source and a worked example. The Go SDK lives in [`pkg/plugin/`](pkg/plugin/).
+
 ## How it works
 
 ```
@@ -154,7 +168,7 @@ Bodies are buffered up to `limits.max_body_size`, fanned out across all enabled 
 - [x] **M2** — MITM with on-the-fly CA, OS trust-store install/uninstall, `tg-proxy ca` subcommands.
 - [x] **M3** — pip wheels + npm packages, all distribution channels wired into the release pipeline.
 - [x] **M4** — Streaming bodies (SSE, chunked, HTTP/2) with sliding-window scanning so long-running LLM responses scan in flight.
-- [ ] **M5** — gRPC-based external plugin host (HashiCorp `go-plugin`), Python and Node plugin SDKs.
+- [x] **M5** — gRPC-based external plugin host (HashiCorp `go-plugin`) with a Python SDK so scanners and redactors can be written in any language. (Node SDK is a follow-up.)
 - [ ] **M6** — More built-in scanners (secrets in the gitleaks family, SQL injection heuristics, source-code detection), Prometheus metrics, hot config reload.
 - [ ] **M7** — Linux transparent mode via `SO_ORIGINAL_DST` + SNI sniffing for OS-level redirect without `HTTPS_PROXY`.
 

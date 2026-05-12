@@ -20,3 +20,8 @@ __pycache__/
 # Node artifacts under packaging/npm
 packaging/npm/node_modules/
 packaging/npm/npm-out/
+
+# Python SDK build artifacts
+packaging/python-sdk-plugin/build/
+packaging/python-sdk-plugin/dist/
+packaging/python-sdk-plugin/src/*.egg-info/

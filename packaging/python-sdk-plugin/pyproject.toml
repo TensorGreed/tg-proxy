@@ -1,0 +1,33 @@
+# tgproxy-plugin: Python SDK for writing tg-proxy scanner / redactor plugins.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tgproxy-plugin"
+version = "0.0.0"
+description = "Python SDK for writing tg-proxy scanner and redactor plugins."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "TensorGreed" }]
+keywords = ["tg-proxy", "plugin", "scanner", "redactor", "pii"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "grpcio>=1.60",
+  "protobuf>=4.25",
+]
+
+[project.urls]
+Homepage   = "https://github.com/TensorGreed/tg-proxy"
+Repository = "https://github.com/TensorGreed/tg-proxy"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages    = ["tgproxy_plugin", "tgproxy_plugin._proto"]

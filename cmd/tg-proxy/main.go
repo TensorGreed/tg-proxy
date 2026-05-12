@@ -12,10 +12,12 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/TensorGreed/tg-proxy/internal/ca"
 	"github.com/TensorGreed/tg-proxy/internal/config"
 	"github.com/TensorGreed/tg-proxy/internal/pipeline"
+	plug "github.com/TensorGreed/tg-proxy/internal/plugin"
 	"github.com/TensorGreed/tg-proxy/internal/proxy"
 	"github.com/TensorGreed/tg-proxy/internal/redactor"
 	"github.com/TensorGreed/tg-proxy/internal/redactor/mask"
@@ -82,11 +84,14 @@ func run() error {
 	}
 	slog.SetDefault(logger)
 
-	scanners, err := buildScanners(cfg)
+	pluginHost := plug.NewHost(logger)
+	defer pluginHost.Shutdown()
+
+	scanners, err := buildScanners(ctxBackground(), cfg, pluginHost)
 	if err != nil {
 		return err
 	}
-	red, err := buildRedactor(cfg)
+	red, err := buildRedactor(ctxBackground(), cfg, pluginHost)
 	if err != nil {
 		return err
 	}
@@ -168,7 +173,12 @@ func buildLogger(c config.LogConfig) (*slog.Logger, error) {
 	return slog.New(h), nil
 }
 
-func buildScanners(cfg *config.Config) ([]api.Scanner, error) {
+// ctxBackground is its own function so tests can swap it out; right now run()
+// loads plugins eagerly at startup and uses context.Background. Streaming a
+// per-request context is the M5+ improvement.
+func ctxBackground() context.Context { return context.Background() }
+
+func buildScanners(ctx context.Context, cfg *config.Config, host *plug.Host) ([]api.Scanner, error) {
 	reg := scanner.NewRegistry()
 	if err := reg.Register(pii.New()); err != nil {
 		return nil, err
@@ -179,9 +189,23 @@ func buildScanners(cfg *config.Config) ([]api.Scanner, error) {
 		if !sc.Enabled {
 			continue
 		}
+		if sc.External != nil {
+			s, err := host.LoadScanner(ctx, plug.PluginConfig{
+				Name:             sc.Name,
+				Command:          sc.External.Command,
+				Env:              sc.External.Env,
+				Kind:             plug.KindScanner,
+				HandshakeTimeout: time.Duration(sc.External.HandshakeTimeoutSeconds) * time.Second,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("scanner %q (external): %w", sc.Name, err)
+			}
+			out = append(out, s)
+			continue
+		}
 		s, ok := reg.Get(sc.Name)
 		if !ok {
-			return nil, fmt.Errorf("scanner %q is not registered", sc.Name)
+			return nil, fmt.Errorf("scanner %q is not registered (and no external command supplied)", sc.Name)
 		}
 		out = append(out, s)
 	}
@@ -191,17 +215,29 @@ func buildScanners(cfg *config.Config) ([]api.Scanner, error) {
 	return out, nil
 }
 
-func buildRedactor(cfg *config.Config) (api.Redactor, error) {
-	reg := redactor.NewRegistry()
+func buildRedactor(ctx context.Context, cfg *config.Config, host *plug.Host) (api.Redactor, error) {
+	if cfg.Redactor.External != nil {
+		r, err := host.LoadRedactor(ctx, plug.PluginConfig{
+			Name:             cfg.Redactor.Name,
+			Command:          cfg.Redactor.External.Command,
+			Env:              cfg.Redactor.External.Env,
+			Kind:             plug.KindRedactor,
+			HandshakeTimeout: time.Duration(cfg.Redactor.External.HandshakeTimeoutSeconds) * time.Second,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("redactor %q (external): %w", cfg.Redactor.Name, err)
+		}
+		return r, nil
+	}
 
+	reg := redactor.NewRegistry()
 	placeholder, _ := cfg.Redactor.Config["placeholder"].(string)
 	if err := reg.Register(mask.New(placeholder)); err != nil {
 		return nil, err
 	}
-
 	r, ok := reg.Get(cfg.Redactor.Name)
 	if !ok {
-		return nil, fmt.Errorf("redactor %q is not registered", cfg.Redactor.Name)
+		return nil, fmt.Errorf("redactor %q is not registered (and no external command supplied)", cfg.Redactor.Name)
 	}
 	return r, nil
 }

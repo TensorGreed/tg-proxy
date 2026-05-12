@@ -91,8 +91,24 @@ type LimitsConfig struct {
 }
 
 type ScannerConfig struct {
-	Name    string `yaml:"name"`
-	Enabled bool   `yaml:"enabled"`
+	Name     string                 `yaml:"name"`
+	Enabled  bool                   `yaml:"enabled"`
+	External *ExternalPluginConfig  `yaml:"external,omitempty"`
+}
+
+// ExternalPluginConfig points at a subprocess plugin spoken over the gRPC
+// protocol in pkg/plugin/proto. When set on a ScannerConfig entry, the
+// scanner is loaded from this command instead of a built-in.
+type ExternalPluginConfig struct {
+	// Command is the subprocess command line. First element is the
+	// binary; the rest are arguments passed verbatim.
+	Command []string `yaml:"command"`
+	// Env is an optional list of "KEY=VALUE" overrides; when empty, the
+	// plugin inherits the host's environment.
+	Env []string `yaml:"env"`
+	// HandshakeTimeoutSeconds bounds how long the host waits for the
+	// plugin to announce itself before giving up. Defaults to 10.
+	HandshakeTimeoutSeconds int `yaml:"handshake_timeout_seconds"`
 }
 
 // TLSConfig controls TLS interception. When MITM is true the proxy
@@ -113,8 +129,9 @@ type CAConfig struct {
 }
 
 type RedactorConfig struct {
-	Name   string         `yaml:"name"`
-	Config map[string]any `yaml:"config"`
+	Name     string                 `yaml:"name"`
+	Config   map[string]any         `yaml:"config"`
+	External *ExternalPluginConfig  `yaml:"external,omitempty"`
 }
 
 // Load reads, parses, and validates a YAML config file. Unknown fields
@@ -176,12 +193,18 @@ func (c *Config) Validate() error {
 		if s.Name == "" {
 			return errors.New("scanner entry missing name")
 		}
+		if s.External != nil && len(s.External.Command) == 0 {
+			return fmt.Errorf("scanner %q: external.command must not be empty", s.Name)
+		}
 		if s.Enabled {
 			enabled++
 		}
 	}
 	if enabled == 0 {
 		return errors.New("at least one scanner must be enabled")
+	}
+	if c.Redactor.External != nil && len(c.Redactor.External.Command) == 0 {
+		return errors.New("redactor.external.command must not be empty")
 	}
 	return nil
 }
