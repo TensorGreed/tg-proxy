@@ -157,6 +157,33 @@ func TestScan_NoPercentSkipsDualPass(t *testing.T) {
 	assert.Len(t, a, len(b))
 }
 
+func TestScan_NFKCDualPass_CatchesUnicodeLookalikeEmail(t *testing.T) {
+	// ＠ is U+FF20 FULLWIDTH COMMERCIAL AT — NFKC-decomposes to @. With
+	// the NFKC dual pass the PII email rule now sees the address.
+	src := []byte("contact alice＠example.com please")
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	findings, err := p.Scan(context.Background(), src, api.Hints{})
+	require.NoError(t, err)
+	require.NotEmpty(t, findings, "NFKC dual pass should have caught the full-width @ email")
+
+	// Mapped-back match must include the original full-width @, not the
+	// NFKC `@`.
+	got := string(src[findings[0].Start:findings[0].End])
+	assert.Contains(t, got, "＠")
+}
+
+func TestScan_ASCIIOnlySkipsNFKC(t *testing.T) {
+	// Pure ASCII input — NFKC pass should be skipped entirely.
+	// Behaviorally indistinguishable from a raw ScanWith call.
+	src := []byte("contact alice@example.com please")
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	a, err := p.Scan(context.Background(), src, api.Hints{})
+	require.NoError(t, err)
+	b, err := ScanWith(context.Background(), []api.Scanner{pii.New()}, src, api.Hints{})
+	require.NoError(t, err)
+	assert.Len(t, a, len(b))
+}
+
 func TestProcess_ScannersRunConcurrently(t *testing.T) {
 	const n = 50
 	scanners := make([]api.Scanner, n)

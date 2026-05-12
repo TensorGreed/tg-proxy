@@ -102,6 +102,34 @@ func TestScan_BenignTextNotFlagged(t *testing.T) {
 	assert.Empty(t, findings)
 }
 
+func TestScan_UnicodeWhitespace(t *testing.T) {
+	// Each input replaces the ASCII space between keywords with a
+	// different Unicode space-separator character. All variants must
+	// still fire — otherwise an attacker can evade by literally typing
+	// a non-breaking space.
+	const (
+		nbsp        = " " // NO-BREAK SPACE
+		ideographic = "　" // IDEOGRAPHIC SPACE
+		narrowNBSP  = " " // NARROW NO-BREAK SPACE
+	)
+	cases := []struct {
+		name    string
+		input   string
+		wantTyp string
+	}{
+		{"nbsp UNION SELECT", "id=1 UNION" + nbsp + "SELECT 1,2", "sqli.union_select"},
+		{"ideographic UNION SELECT", "id=1 UNION" + ideographic + "SELECT 1,2", "sqli.union_select"},
+		{"narrow nbsp tautology", "name=admin' OR" + narrowNBSP + "1=1", "sqli.tautology"},
+		{"nbsp ; DROP", "id=1;" + nbsp + "DROP TABLE users", "sqli.statement_chain"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fs := findingsOf(t, c.wantTyp, c.input)
+			assert.NotEmpty(t, fs, "expected %s to fire on %q", c.wantTyp, c.input)
+		})
+	}
+}
+
 func TestScan_OffsetsArePrecise(t *testing.T) {
 	input := "name=admin' OR 1=1-- and id=2; DROP TABLE users"
 	findings, err := New().Scan(context.Background(), []byte(input), api.Hints{})

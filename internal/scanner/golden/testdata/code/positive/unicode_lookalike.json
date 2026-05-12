@@ -1,0 +1,7 @@
+{
+  "comment": "GRADUATED from adversarial: code where the leading letter of `def`/`class` is a Unicode lookalike: U+217E ⅾ for `d`, U+217D ⅽ for `c`. Both NFKC-decompose to the ASCII letter, and the pipeline-level NFKC pre-pass handles them without changing per-detector regexes.",
+  "findings": [
+    {"type": "code.python_def",   "match": "ⅾef greet()"},
+    {"type": "code.python_class", "match": "ⅽlass Order:"}
+  ]
+}

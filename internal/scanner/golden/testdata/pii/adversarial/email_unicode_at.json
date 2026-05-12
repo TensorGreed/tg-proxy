@@ -1,6 +1,0 @@
-{
-  "comment": "Email using a full-width @ (U+FF20) instead of ASCII @ (U+0040). Common in CJK text and copy-pasted from some platforms. Fix would require unicode-normalize-before-scan.",
-  "ideal_findings": [
-    {"type": "pii.email", "match": "alice＠example.com"}
-  ]
-}

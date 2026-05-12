@@ -6,7 +6,9 @@
       "Bash(go test *)",
       "Bash(go vet *)",
       "Bash(echo \"vet exit: $?\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(mv internal/scanner/golden/testdata/sqli/adversarial/nbsp_separator.txt internal/scanner/golden/testdata/sqli/positive/nbsp_separator.txt)",
+      "Bash(mv internal/scanner/golden/testdata/sqli/adversarial/nbsp_separator.json internal/scanner/golden/testdata/sqli/positive/nbsp_separator.json)"
     ]
   }
 }

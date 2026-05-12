@@ -1,0 +1,6 @@
+{
+  "comment": "GRADUATED from adversarial: UNION_SELECT with a non-breaking space (U+00A0) between keywords. The mustCompile helper in sqli.go expands `\\s` to `[\\s\\p{Zs}]` so the rule now sees Unicode whitespace as well.",
+  "findings": [
+    {"type": "sqli.union_select", "match": "UNION"}
+  ]
+}

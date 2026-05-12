@@ -47,57 +47,87 @@ type Result struct {
 // Scan fans out the given data to every configured scanner concurrently and
 // returns the merged findings. Scanner errors are joined via errors.Join.
 //
-// When the input contains at least one `%` byte, Scan additionally URL-
-// decodes the body and runs a second scanner pass over the decoded form,
-// translating any new findings' offsets back to positions in the original
-// buffer. This catches secrets and PII that were URL-encoded in transit
-// (`alice%40example.com`, `ghp%5F...`, `%55%4E%49%4F%4E`, ...). Findings
-// that already exist in the raw pass at the same type and overlapping
-// range are deduplicated.
+// Beyond the raw pass, Scan runs scanners over additional transformed
+// views of the body when the corresponding pre-check fires:
+//
+//   - URL-decoded view (when `%` is present): catches `alice%40example.com`,
+//     `ghp%5F...`, `%55%4E%49%4F%4E SELECT`, etc.
+//   - NFKC-normalized view (when non-ASCII is present): catches Unicode
+//     confusables and lookalikes — `ⅾef foo()` → `def foo()`, `ⅽlass` →
+//     `class`, full-width `＠` → `@`, ligatures, fancy digits, etc.
+//
+// Each pass's findings are mapped back to byte ranges in the original
+// buffer and deduped against earlier findings by `(type, range)`.
 //
 // Exported so streaming callers can reuse the same fan-out without going
 // through Process (which also runs the redactor). Note: the streaming
 // path (StreamProcessor) calls ScanWith directly and therefore does NOT
-// get the URL-decode dual pass — percent-encoded values straddling chunk
-// boundaries need their own handling and are a follow-up.
+// get any of the transformed passes — chunk-boundary-aware versions are
+// follow-ups.
 func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]api.Finding, error) {
 	if len(data) == 0 || len(p.scanners) == 0 {
 		return nil, nil
 	}
 
-	rawFindings, scanErr := ScanWith(ctx, p.scanners, data, hints)
+	findings, scanErr := ScanWith(ctx, p.scanners, data, hints)
 
-	if !containsPercent(data) {
-		return rawFindings, scanErr
-	}
-	decoded, origIdx := urlDecode(data)
-	if bytes.Equal(decoded, data) {
-		// `%` was present but no valid `%XX` sequence — no decoding
-		// happened, so a second scan would just repeat the first.
-		return rawFindings, scanErr
+	if containsPercent(data) {
+		extra, err := p.transformedPass(ctx, data, hints, urlDecode)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
 	}
 
-	decFindings, decErr := ScanWith(ctx, p.scanners, decoded, hints)
-	if decErr != nil {
-		scanErr = errors.Join(scanErr, decErr)
+	if containsNonASCII(data) {
+		extra, err := p.transformedPass(ctx, data, hints, nfkcNormalize)
+		scanErr = errors.Join(scanErr, err)
+		findings = mergeNew(findings, extra)
 	}
-	for _, f := range decFindings {
+
+	return findings, scanErr
+}
+
+// transformedPass runs scanners over the transform(data) view of the body
+// and translates each finding's offsets back to positions in the original
+// data via the returned mapping. Returns nil when the transform was a no-op
+// (signaled by transform returning nil for origIdx or unchanged bytes).
+func (p *Pipeline) transformedPass(
+	ctx context.Context,
+	data []byte,
+	hints api.Hints,
+	transform func([]byte) ([]byte, []int),
+) ([]api.Finding, error) {
+	transformed, origIdx := transform(data)
+	if origIdx == nil || bytes.Equal(transformed, data) {
+		return nil, nil
+	}
+	findings, err := ScanWith(ctx, p.scanners, transformed, hints)
+	mapped := findings[:0]
+	for _, f := range findings {
 		if f.Start < 0 || f.End > len(origIdx)-1 || f.Start >= f.End {
 			continue
 		}
 		f.Start = origIdx[f.Start]
 		f.End = origIdx[f.End]
-		if overlapsExisting(rawFindings, f) {
-			continue
-		}
-		rawFindings = append(rawFindings, f)
+		mapped = append(mapped, f)
 	}
-	return rawFindings, scanErr
+	return mapped, err
+}
+
+// mergeNew appends to existing any finding from extra that doesn't overlap
+// an existing finding of the same type. Used to dedupe the raw scan
+// against the URL-decode and NFKC passes when the same value appears
+// across views.
+func mergeNew(existing, extra []api.Finding) []api.Finding {
+	for _, f := range extra {
+		if !overlapsExisting(existing, f) {
+			existing = append(existing, f)
+		}
+	}
+	return existing
 }
 
 // overlapsExisting reports whether f overlaps any existing finding of the
-// same type. Used to suppress duplicates between the raw and URL-decoded
-// scanner passes when an unencoded value appears in both views.
+// same type.
 func overlapsExisting(existing []api.Finding, f api.Finding) bool {
 	for _, e := range existing {
 		if e.Type == f.Type && e.Start < f.End && f.Start < e.End {

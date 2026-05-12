@@ -1,6 +1,0 @@
-{
-  "comment": "UNION␣SELECT with a non-breaking space (U+00A0) between keywords. Go's regexp `\\s` only matches ASCII whitespace, so the pattern misses this. Fix: use `[\\s\\xc2\\xa0]+` or pre-normalize to ASCII space.",
-  "ideal_findings": [
-    {"type": "sqli.union_select", "match": "UNION"}
-  ]
-}

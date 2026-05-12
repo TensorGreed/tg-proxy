@@ -1,4 +1,0 @@
-ⅽdef greet():
-    return 1
-ℂlass Order:
-    pass

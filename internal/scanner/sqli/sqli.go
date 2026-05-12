@@ -14,11 +14,25 @@ package sqli
 import (
 	"context"
 	"regexp"
+	"strings"
 
 	"github.com/TensorGreed/tg-proxy/pkg/api"
 )
 
 const Name = "sqli"
+
+// mustCompile compiles pat after expanding the `\s` shorthand to also
+// match Unicode space-separator characters (NBSP, ideographic space,
+// narrow no-break space, ...). Without this, a payload that swaps the
+// ASCII space between `UNION` and `SELECT` for a U+00A0 trivially evades
+// every detector that anchors on `\s+`.
+//
+// We restrict the expansion to `\s` only; the per-detector character
+// classes that already enumerate separators explicitly (e.g. `[\s.\-]`
+// in the PII phone rule) are unaffected.
+func mustCompile(pat string) *regexp.Regexp {
+	return regexp.MustCompile(strings.ReplaceAll(pat, `\s`, `[\s\p{Zs}]`))
+}
 
 type detector struct {
 	typ        string
@@ -31,7 +45,7 @@ var detectors = []detector{
 	{
 		// UNION-based extraction. Allow any whitespace between the keywords.
 		typ:        "sqli.union_select",
-		pattern:    regexp.MustCompile(`(?i)\bunion\s+(?:all\s+)?select\b`),
+		pattern:    mustCompile(`(?i)\bunion\s+(?:all\s+)?select\b`),
 		severity:   api.SeverityHigh,
 		confidence: 0.90,
 	},
@@ -39,14 +53,14 @@ var detectors = []detector{
 		// Tautology injection — the classic "or 1=1" family. Allows
 		// optional quotes so 'or' '1'='1' is also caught.
 		typ:        "sqli.tautology",
-		pattern:    regexp.MustCompile(`(?i)(?:'\s*)?\b(?:or|and)\b\s+'?\d+'?\s*=\s*'?\d+'?`),
+		pattern:    mustCompile(`(?i)(?:'\s*)?\b(?:or|and)\b\s+'?\d+'?\s*=\s*'?\d+'?`),
 		severity:   api.SeverityHigh,
 		confidence: 0.85,
 	},
 	{
 		// Statement chaining: "; DROP TABLE", "; DELETE FROM", etc.
 		typ:        "sqli.statement_chain",
-		pattern:    regexp.MustCompile(`(?i);\s*(?:drop|delete|update|insert|truncate|alter)\b`),
+		pattern:    mustCompile(`(?i);\s*(?:drop|delete|update|insert|truncate|alter)\b`),
 		severity:   api.SeverityCritical,
 		confidence: 0.90,
 	},
@@ -54,7 +68,7 @@ var detectors = []detector{
 		// Comment markers tucked between tokens — used to break out of
 		// quoted strings or skip the rest of a statement.
 		typ:        "sqli.comment_marker",
-		pattern:    regexp.MustCompile(`(?:--\s|/\*.*?\*/|#\s+(?:OR|AND)\s+)`),
+		pattern:    mustCompile(`(?:--\s|/\*.*?\*/|#\s+(?:OR|AND)\s+)`),
 		severity:   api.SeverityMedium,
 		confidence: 0.50,
 	},
@@ -63,7 +77,7 @@ var detectors = []detector{
 		// an argument list with parentheses; WAITFOR DELAY in T-SQL takes
 		// a quoted time string instead.
 		typ: "sqli.time_based",
-		pattern: regexp.MustCompile(
+		pattern: mustCompile(
 			`(?i)\b(?:sleep|benchmark|pg_sleep)\s*\(|\bwaitfor\s+delay\b`,
 		),
 		severity:   api.SeverityHigh,
