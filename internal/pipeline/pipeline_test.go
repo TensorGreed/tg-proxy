@@ -105,6 +105,58 @@ func TestProcess_NoRedactor(t *testing.T) {
 	assert.Len(t, res.Findings, 1)
 }
 
+func TestScan_URLDecodeDualPass_CatchesEncodedEmail(t *testing.T) {
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	// alice%40example.com — URL-encoded @. Without the dual pass the raw
+	// scan misses it because the email regex requires a literal `@`.
+	input := []byte("?email=alice%40example.com&name=bob")
+	findings, err := p.Scan(context.Background(), input, api.Hints{})
+	require.NoError(t, err)
+	require.NotEmpty(t, findings, "URL-decode dual pass should have caught the encoded email")
+
+	var got api.Finding
+	for _, f := range findings {
+		if f.Type == "pii.email" {
+			got = f
+			break
+		}
+	}
+	require.Equal(t, "pii.email", got.Type)
+	// Mapped-back offsets must point at the original (encoded) span.
+	assert.Equal(t, "alice%40example.com", string(input[got.Start:got.End]))
+}
+
+func TestScan_URLDecodeDualPass_DedupesIdenticalRawAndDecodedHit(t *testing.T) {
+	// `%` is present (triggering the dual pass) but the actual PII match
+	// is in the un-encoded portion of the body. The dual pass would
+	// re-find it at the same offsets — must dedupe to one finding.
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	input := []byte("email=alice@example.com&pct=100%")
+	findings, err := p.Scan(context.Background(), input, api.Hints{})
+	require.NoError(t, err)
+
+	emails := 0
+	for _, f := range findings {
+		if f.Type == "pii.email" {
+			emails++
+		}
+	}
+	assert.Equal(t, 1, emails, "the same email must not be reported twice")
+}
+
+func TestScan_NoPercentSkipsDualPass(t *testing.T) {
+	// Sanity: when no `%` is present the dual pass is skipped entirely.
+	// We can't observe "fast path taken" directly, but Pipeline output
+	// should be identical to ScanWith.
+	p := New([]api.Scanner{pii.New()}, mask.New(""))
+	input := []byte("contact alice@example.com please")
+	a, err := p.Scan(context.Background(), input, api.Hints{})
+	require.NoError(t, err)
+	b, err := ScanWith(context.Background(), []api.Scanner{pii.New()}, input, api.Hints{})
+	require.NoError(t, err)
+	assert.Len(t, a, len(b))
+}
+
 func TestProcess_ScannersRunConcurrently(t *testing.T) {
 	const n = 50
 	scanners := make([]api.Scanner, n)

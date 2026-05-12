@@ -28,12 +28,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TensorGreed/tg-proxy/internal/pipeline"
 	"github.com/TensorGreed/tg-proxy/internal/scanner/code"
 	"github.com/TensorGreed/tg-proxy/internal/scanner/pii"
 	"github.com/TensorGreed/tg-proxy/internal/scanner/secrets"
 	"github.com/TensorGreed/tg-proxy/internal/scanner/sqli"
 	"github.com/TensorGreed/tg-proxy/pkg/api"
 )
+
+// scanThroughPipeline runs s wrapped in a single-scanner Pipeline so the
+// corpus reflects the URL-decode dual pass and any future pipeline-layer
+// processing — i.e. what tg-proxy actually does to a body in production —
+// rather than the scanner's bare Scan method.
+func scanThroughPipeline(ctx context.Context, s api.Scanner, data []byte, hints api.Hints) ([]api.Finding, error) {
+	p := pipeline.New([]api.Scanner{s}, nil)
+	return p.Scan(ctx, data, hints)
+}
 
 // expected describes one finding the fixture author expects to see.
 // Either `match` (a substring of the body) or `start`/`end` (explicit byte
@@ -151,7 +161,7 @@ func runPositives(t *testing.T, scannerName string, s api.Scanner, m *metrics) {
 		name := strings.TrimSuffix(e.Name(), ".txt")
 		t.Run("positive/"+name, func(t *testing.T) {
 			data, side := loadFixture(t, dir, name)
-			findings, err := s.Scan(context.Background(), data, api.Hints{})
+			findings, err := scanThroughPipeline(context.Background(), s, data, api.Hints{})
 			if err != nil {
 				t.Fatalf("scan error: %v", err)
 			}
@@ -180,7 +190,7 @@ func runNegatives(t *testing.T, scannerName string, s api.Scanner, m *metrics) {
 			if err != nil {
 				t.Fatalf("read %s: %v", path, err)
 			}
-			findings, err := s.Scan(context.Background(), data, api.Hints{})
+			findings, err := scanThroughPipeline(context.Background(), s, data, api.Hints{})
 			if err != nil {
 				t.Fatalf("scan error: %v", err)
 			}

@@ -1,0 +1,9 @@
+{
+  "comment": "GRADUATED from adversarial: URL-encoded UNION SELECT in a query string. Same fix as the URL-encoded email/secret cases \u00e2\u20ac\u201d decode bodies before matching.",
+  "findings": [
+    {
+      "type": "sqli.union_select",
+      "match": "%55%4E%49%4F%4E%20%53%45%4C%45%43%54"
+    }
+  ]
+}

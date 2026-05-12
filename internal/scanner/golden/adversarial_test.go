@@ -103,7 +103,10 @@ func runAdversarial(t *testing.T, scannerName string, s api.Scanner, stats *adve
 		name := strings.TrimSuffix(e.Name(), ".txt")
 		t.Run(name, func(t *testing.T) {
 			data, side := loadAdversarial(t, dir, name)
-			findings, err := s.Scan(context.Background(), data, api.Hints{})
+			// Route through the pipeline so the corpus exercises the
+			// URL-decode dual pass (and any future pipeline-layer
+			// processing) — i.e. what production traffic actually sees.
+			findings, err := scanThroughPipeline(context.Background(), s, data, api.Hints{})
 			if err != nil {
 				t.Fatalf("scan error: %v", err)
 			}

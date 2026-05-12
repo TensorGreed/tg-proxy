@@ -1,6 +1,0 @@
-{
-  "comment": "Email URL-encoded in a query string. Fix would require URL-decoding bodies before scanning (or matching %40 as an alternative for @).",
-  "ideal_findings": [
-    {"type": "pii.email", "match": "alice%40example.com"}
-  ]
-}

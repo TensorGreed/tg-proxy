@@ -9,6 +9,7 @@
 package pipeline
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -46,13 +47,64 @@ type Result struct {
 // Scan fans out the given data to every configured scanner concurrently and
 // returns the merged findings. Scanner errors are joined via errors.Join.
 //
+// When the input contains at least one `%` byte, Scan additionally URL-
+// decodes the body and runs a second scanner pass over the decoded form,
+// translating any new findings' offsets back to positions in the original
+// buffer. This catches secrets and PII that were URL-encoded in transit
+// (`alice%40example.com`, `ghp%5F...`, `%55%4E%49%4F%4E`, ...). Findings
+// that already exist in the raw pass at the same type and overlapping
+// range are deduplicated.
+//
 // Exported so streaming callers can reuse the same fan-out without going
-// through Process (which also runs the redactor).
+// through Process (which also runs the redactor). Note: the streaming
+// path (StreamProcessor) calls ScanWith directly and therefore does NOT
+// get the URL-decode dual pass — percent-encoded values straddling chunk
+// boundaries need their own handling and are a follow-up.
 func (p *Pipeline) Scan(ctx context.Context, data []byte, hints api.Hints) ([]api.Finding, error) {
 	if len(data) == 0 || len(p.scanners) == 0 {
 		return nil, nil
 	}
-	return ScanWith(ctx, p.scanners, data, hints)
+
+	rawFindings, scanErr := ScanWith(ctx, p.scanners, data, hints)
+
+	if !containsPercent(data) {
+		return rawFindings, scanErr
+	}
+	decoded, origIdx := urlDecode(data)
+	if bytes.Equal(decoded, data) {
+		// `%` was present but no valid `%XX` sequence — no decoding
+		// happened, so a second scan would just repeat the first.
+		return rawFindings, scanErr
+	}
+
+	decFindings, decErr := ScanWith(ctx, p.scanners, decoded, hints)
+	if decErr != nil {
+		scanErr = errors.Join(scanErr, decErr)
+	}
+	for _, f := range decFindings {
+		if f.Start < 0 || f.End > len(origIdx)-1 || f.Start >= f.End {
+			continue
+		}
+		f.Start = origIdx[f.Start]
+		f.End = origIdx[f.End]
+		if overlapsExisting(rawFindings, f) {
+			continue
+		}
+		rawFindings = append(rawFindings, f)
+	}
+	return rawFindings, scanErr
+}
+
+// overlapsExisting reports whether f overlaps any existing finding of the
+// same type. Used to suppress duplicates between the raw and URL-decoded
+// scanner passes when an unencoded value appears in both views.
+func overlapsExisting(existing []api.Finding, f api.Finding) bool {
+	for _, e := range existing {
+		if e.Type == f.Type && e.Start < f.End && f.Start < e.End {
+			return true
+		}
+	}
+	return false
 }
 
 // ScanWith is the underlying scanner fan-out. Exposed so other components
