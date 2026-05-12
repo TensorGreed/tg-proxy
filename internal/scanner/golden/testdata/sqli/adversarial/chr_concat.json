@@ -1,0 +1,6 @@
+{
+  "comment": "Tautology assembled via string concatenation with CHR() to dodge quote and equals filters. Detection needs an evaluator-aware pass or at minimum a specific CHR(39)+CHR(61) signature.",
+  "ideal_findings": [
+    {"type": "sqli.tautology", "match": "'OR'+CHR(32)+'1'+CHR(61)+'1'"}
+  ]
+}

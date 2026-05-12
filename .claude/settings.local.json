@@ -5,7 +5,8 @@
       "Bash(go build *)",
       "Bash(go test *)",
       "Bash(go vet *)",
-      "Bash(echo \"vet exit: $?\")"
+      "Bash(echo \"vet exit: $?\")",
+      "Bash(python -c ' *)"
     ]
   }
 }

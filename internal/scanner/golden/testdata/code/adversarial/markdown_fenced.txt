@@ -1,0 +1,10 @@
+## Example
+
+The simplest Python function:
+
+```python
+def greet(name):
+    return f"hi {name}"
+```
+
+That's the basics covered.

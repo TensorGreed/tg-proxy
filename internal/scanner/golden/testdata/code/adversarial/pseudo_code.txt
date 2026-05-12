@@ -1,0 +1,7 @@
+In our spec we use this pseudo-Python:
+
+def greet name:
+    return hi-name
+
+class Order id:
+    has many lines

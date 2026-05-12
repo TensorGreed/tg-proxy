@@ -1,0 +1,1 @@
+Mail: alice＠example.com — note the full-width @ character (U+FF20).

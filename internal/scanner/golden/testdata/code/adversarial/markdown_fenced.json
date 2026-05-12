@@ -1,0 +1,6 @@
+{
+  "comment": "Python function inside a markdown ```python fence. The current regex sees it (fences are just text to the matcher), so we expect this to graduate to positive/ soon. If it does, the runner will tell us.",
+  "ideal_findings": [
+    {"type": "code.python_def", "match": "def greet("}
+  ]
+}

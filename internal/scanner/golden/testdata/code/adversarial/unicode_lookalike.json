@@ -1,0 +1,7 @@
+{
+  "comment": "Code where the leading letter of `def`/`class` is a Unicode lookalike (U+2175 'ⅽ' for d, U+2102 'ℂ' for C). Adversarial users can hide code from naive regexes this way. Fix: NFKC-normalize body before scanning (or expand alphabet via case-insensitive + confusable mappings).",
+  "ideal_findings": [
+    {"type": "code.python_def",   "match": "def greet()"},
+    {"type": "code.python_class", "match": "lass Order"}
+  ]
+}
